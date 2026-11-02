@@ -38,7 +38,7 @@ Check the latest docs when unsure:
 
 **Repo**
 - `<name>_min` and `<name>_full` test instances exist and cover every input.
-- README exists: badge URL correct and URL-encoded, inputs table matches the YAML, changelog entry for this change.
+- README exists: badge URL correct and URL-encoded, inputs table matches the YAML.
 - Row in the root `README.md` table.
 - `scripts/check.sh` passes.
 
