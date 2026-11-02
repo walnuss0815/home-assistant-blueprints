@@ -1,35 +1,14 @@
 blueprint:
   name: Light Controller (Motion / Presence, with profiles)
-  description: >
+  author: walnuss0815
+  description: >-
     Turns lights on when a motion or presence sensor triggers and off again
-    after no activity for a configurable time.
+    after no activity. Day and Night profiles, operation modes, overrides,
+    illuminance condition, Adaptive Lighting and alarm panel support.
 
 
-    Profiles: Night (time window) and Day (default). Night can use its own
-    lights, off-delay and turn-on behavior.
-
-
-    Also: operation modes (incl. "turn off only, never turn on"), three
-    override types (block turn-on, block turn-off, block both), illuminance
-    condition, optional fixed brightness/color on turn-on (Day, Night),
-    Adaptive Lighting compatible (incl. sleep mode), alarm panel integration
-    (full light on alarm, lights off when armed away).
-
-
-    Lights switched on manually do not start the off-timer.
-
-
-    Illuminance: stale lux readings (sensor still reports the value from when
-    the lights were on) are handled in two ways: lights are turned on as soon
-    as the reading drops below the threshold while someone is present, and
-    the lux condition can be ignored for a short time after the lights were
-    turned off.
-
-
-    Adaptive Lighting: keep "Control brightness and color" off. Lights are
-    then turned on without brightness/color and Adaptive Lighting (including
-    its sleep mode) decides. Calls with explicit brightness/color are treated
-    by Adaptive Lighting as manual control for those lights.
+    [Documentation and changelog](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/light_controller.md)
+  source_url: https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/light_controller.yaml
   domain: automation
   homeassistant:
     min_version: 2024.10.0
@@ -50,7 +29,6 @@ blueprint:
                   - motion
                   - occupancy
                   - presence
-
               multiple: true
         light_entities:
           name: Lights
@@ -67,6 +45,9 @@ blueprint:
               multiple: true
         operation_mode:
           name: Operation mode
+          description: >
+            Whether lights are turned on and/or off automatically. An armed
+            away alarm turns lights off in every mode.
           default: auto_on_off
           selector:
             select:
@@ -78,7 +59,6 @@ blueprint:
                   value: off_only
                 - label: Only turn on (never turn off automatically)
                   value: on_only
-
         control_light_settings:
           name: Control brightness and color
           description: >
@@ -97,6 +77,7 @@ blueprint:
       input:
         day_wait:
           name: Turn off after no presence for
+          description: How long all sensors must be off before the lights are turned off.
           default:
             hours: 0
             minutes: 5
@@ -159,6 +140,7 @@ blueprint:
             time:
         night_until:
           name: Night ends
+          description: End of the Night profile. May be on the next day (e.g. 22:00 to 06:00).
           default: "06:00:00"
           selector:
             time:
@@ -176,6 +158,7 @@ blueprint:
               multiple: true
         night_wait:
           name: Turn off after no presence for
+          description: Off-delay used while the Night profile is active.
           default:
             hours: 0
             minutes: 1
@@ -184,6 +167,7 @@ blueprint:
             duration:
         night_allow_turn_on:
           name: Allow automatic turn-on at night
+          description: When off, lights are only turned off at night, never turned on.
           default: true
           selector:
             boolean:
@@ -229,6 +213,7 @@ blueprint:
               multiple: true
         block_on_states:
           name: Block turn-on - states
+          description: States of the entities above that block turning on.
           default:
             - "on"
           selector:
@@ -246,6 +231,7 @@ blueprint:
               multiple: true
         block_off_states:
           name: Block turn-off - states
+          description: States of the entities above that block turning off.
           default:
             - "on"
           selector:
@@ -255,13 +241,15 @@ blueprint:
           name: Block turn-on and turn-off - entities
           description: >
             While any of these is in one of the states below, the automation
-            does nothing at all (full manual override).
+            does nothing at all (full manual override). Exception: an armed
+            away alarm still turns the lights off.
           default: []
           selector:
             entity:
               multiple: true
         block_both_states:
           name: Block turn-on and turn-off - states
+          description: States of the entities above that block everything.
           default:
             - "on"
           selector:
@@ -287,6 +275,7 @@ blueprint:
                   device_class: illuminance
         illuminance_threshold:
           name: Illuminance threshold
+          description: Lights are only turned on below this value.
           default: 50
           selector:
             number:
@@ -338,9 +327,11 @@ blueprint:
           description: >
             Triggered: all lights (incl. Night lights) on at 100% neutral
             white, held on while the alarm is triggered, overriding lux,
-            profiles, operation mode and all blocks. Afterwards the normal
-            off-timer starts. Armed away / vacation: lights are turned off
-            immediately and not turned on automatically. Pending (entry
+            profiles, operation mode and all blocks. When the alarm ends,
+            lights that were off before it are turned off again, the others
+            follow the normal off-timer. Armed away / vacation: lights are
+            turned off immediately and not turned on automatically,
+            overriding operation mode and all blocks. Pending (entry
             delay): normal operation, but lights turn on at night even if
             "Allow automatic turn-on at night" is off. All other states:
             normal operation.
@@ -383,13 +374,15 @@ triggers:
       - "off"
       - unavailable
     id: motion_off
-  # Fires when a turn-off block ends, so lights don't stay on forever.
+  # Fires when a turn-off block ends, so lights don't stay on forever. A
+  # block entity that becomes unavailable counts as ended.
   - trigger: template
     value_template: >
       {{ not (block_off_entities | select('is_state', block_off_states) | list | count > 0
               or block_both_entities | select('is_state', block_both_states) | list | count > 0) }}
     id: block_released
-  # Restart / reload drops a running delay, so re-check afterwards.
+  # Restart / reload drops a running delay, so re-check afterwards. Saving any
+  # automation fires the reload event and restarts a running off-delay.
   - trigger: homeassistant
     event: start
     id: recheck
@@ -462,6 +455,8 @@ variables:
        + (lux_grace.get('minutes', 0) | int) * 60 + (lux_grace.get('seconds', 0) | int) }}
   # True while a light was turned off less than the grace time ago: the
   # illuminance reading is not trustworthy then (still shows the old value).
+  # shortcut: a Home Assistant restart resets last_changed, so the grace time
+  # applies to all off lights after a restart; fixing needs persistent state.
   lux_grace_active: >
     {{ lux_grace_seconds | int > 0
        and expand(all_lights)
@@ -499,6 +494,30 @@ variables:
     {{ (night_color_temp if profile == 'night' else day_color_temp) | int }}
 
 actions:
+  # Alarm over: turn off the lights the alarm switched on. Lights that changed
+  # to "on" after the alarm started were off before it (brightness/color
+  # changes do not update last_changed).
+  - if:
+      - condition: trigger
+        id: alarm_cleared
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none and trigger.to_state is not none
+             and trigger.from_state.state == 'triggered'
+             and trigger.to_state.state not in ['unavailable', 'unknown'] }}
+    then:
+      - variables:
+          alarm_lights: >
+            {{ expand(all_lights) | selectattr('state', 'eq', 'on')
+               | selectattr('last_changed', 'ge', trigger.from_state.last_changed)
+               | map(attribute='entity_id') | list }}
+      - if:
+          - condition: template
+            value_template: "{{ alarm_lights | count > 0 }}"
+        then:
+          - action: light.turn_off
+            target:
+              entity_id: "{{ alarm_lights }}"
   # Alarm over: hand the lights back to Adaptive Lighting.
   - if:
       - condition: trigger

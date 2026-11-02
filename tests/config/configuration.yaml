@@ -1,5 +1,64 @@
-# One test instance per blueprint pair: "<name>_min" (required inputs only)
+# One test instance pair per blueprint: "<name>_min" (required inputs only)
 # and "<name>_full" (every input set). Use fake entity IDs.
 # Blueprint paths are relative to blueprints/<domain>/ and live under "repo/".
-automation: []
+automation:
+  - alias: light_controller_min
+    use_blueprint:
+      path: repo/light_controller.yaml
+      input:
+        motion_entities:
+          - binary_sensor.motion
+        light_entities:
+          - light.room
+  - alias: light_controller_full
+    use_blueprint:
+      path: repo/light_controller.yaml
+      input:
+        motion_entities:
+          - binary_sensor.motion
+          - binary_sensor.presence
+        light_entities:
+          - light.room
+          - light.room_strip
+        operation_mode: auto_on_off
+        control_light_settings: true
+        day_wait:
+          hours: 0
+          minutes: 10
+          seconds: 0
+        brightness_pct: 80
+        color_mode: rgb
+        color_temp_kelvin: 3000
+        rgb_color: [255, 180, 100]
+        night_from: "23:00:00"
+        night_until: "05:00:00"
+        night_lights:
+          - light.room_strip
+        night_wait:
+          hours: 0
+          minutes: 2
+          seconds: 0
+        night_allow_turn_on: false
+        night_brightness: 5
+        night_color_temp: 2000
+        block_on_entities:
+          - input_boolean.cinema
+        block_on_states:
+          - "on"
+        block_off_entities:
+          - input_boolean.keep_on
+        block_off_states:
+          - "on"
+        block_both_entities:
+          - input_boolean.manual
+        block_both_states:
+          - "on"
+        illuminance_sensor: sensor.room_illuminance
+        illuminance_threshold: 30
+        illuminance_ignore_after_off:
+          hours: 0
+          minutes: 5
+          seconds: 0
+        adaptive_lighting_switch: switch.adaptive_lighting_room
+        alarm_panel: alarm_control_panel.home
 script: {}
