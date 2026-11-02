@@ -26,7 +26,7 @@ Topics, for `person.alex` with the defaults:
 - The sending instance also gets the device tracker through discovery, because it listens on the same broker. Disable it there (**Settings > Entities**). It stays disabled.
 - Do not run this blueprint on the receiving instance for the synced tracker. That creates a loop.
 - If the source becomes `unknown` or `unavailable`, nothing is published and the receiving instance keeps the last location.
-- Without GPS, a zone name from the sending instance is shown as-is on the receiving instance.
+- Without GPS, a zone name from the sending instance is shown as-is on the receiving instance. Coordinates from an earlier GPS state are cleared with empty (`null`) coordinates, so the receiving instance may log one "incomplete location info" warning.
 - To remove the tracker on the receiving instance after deleting the automation, publish an empty retained payload to the config topic (**Settings > Devices & services > MQTT > Configure > Publish a packet**, or call `mqtt.publish` with `retain: true` and no payload).
 - To use the location for a person on the receiving instance, add the new device tracker to that person.
 

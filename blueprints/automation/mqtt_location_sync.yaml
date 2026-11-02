@@ -54,8 +54,10 @@ triggers:
 
 variables:
   tracked_entity: !input tracked_entity
-  topic_prefix: !input topic_prefix
-  discovery_prefix: !input discovery_prefix
+  topic_prefix_in: !input topic_prefix
+  discovery_prefix_in: !input discovery_prefix
+  topic_prefix: "{{ (topic_prefix_in | trim) or 'location_sync' }}"
+  discovery_prefix: "{{ (discovery_prefix_in | trim) or 'homeassistant' }}"
   base_topic: "{{ topic_prefix ~ '/' ~ (tracked_entity | replace('.', '_')) }}"
   unique_id: "{{ base_topic | slugify }}"
   has_gps: >-
@@ -101,6 +103,13 @@ actions:
           retain: true
           payload: gps
     else:
+      # clear coordinates stored from an earlier GPS state, they would override the state
+      - action: mqtt.publish
+        data:
+          topic: "{{ base_topic }}/attributes"
+          retain: true
+          payload: >-
+            {{ {'latitude': none, 'longitude': none} | to_json }}
       - action: mqtt.publish
         data:
           topic: "{{ base_topic }}/state"
