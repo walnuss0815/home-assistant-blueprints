@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^scripts/check\\.sh$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\w+=\"\\$\\{\\w+:-(?<currentValue>[^}]+)\\}\""
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDepNames": ["ghcr.io/home-assistant/home-assistant"],
+      "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/"
+    }
+  ]
+}

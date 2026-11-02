@@ -1,0 +1,45 @@
+# Home Assistant Blueprints
+
+Custom [Home Assistant blueprints](https://www.home-assistant.io/docs/blueprint/) for automations and scripts.
+
+## Blueprints
+
+| Blueprint | Domain | Import |
+| --------- | ------ | ------ |
+
+## Use a blueprint
+
+### Import (recommended)
+
+Click the import badge in the table above or on a blueprint's README. Home Assistant opens the import dialog on your instance (requires [My Home Assistant](https://my.home-assistant.io/) to be set up). Then create an automation or script from it under **Settings > Automations & scenes > Blueprints**.
+
+Or import by URL: **Settings > Automations & scenes > Blueprints > Import Blueprint** and paste the GitHub link to the blueprint's `.yaml` file.
+
+### Manual
+
+Copy the `.yaml` file to `<config>/blueprints/<domain>/` (`automation` or `script`), then reload or restart Home Assistant.
+
+### Updates
+
+Imported blueprints are updated with **Blueprints > ⋮ > Re-import blueprint**. This overwrites the local file. Check the changelog in the blueprint's README first. Input names and selectors are never changed in an existing blueprint, new inputs always have defaults. Breaking changes are published as a new blueprint.
+
+## Development
+
+Requires Docker (or set `CONTAINER_ENGINE=podman`).
+
+```sh
+scripts/check.sh        # lint + Home Assistant check_config
+scripts/check.sh lint
+scripts/check.sh config
+HA_VERSION=beta scripts/check.sh config
+```
+
+CI (`.github/workflows/validate.yml`) runs yamllint and `check_config` against the pinned Home Assistant release and against `beta`, on push, pull requests and weekly.
+
+What this checks: blueprint schema, selectors, required inputs, and that each test instance in `tests/config/configuration.yaml` generates a valid automation or script. What it does not check: rendered templates, runtime behaviour, or older Home Assistant versions than the pinned one.
+
+Dependencies are updated by [Renovate](https://docs.renovatebot.com/). See `AGENTS.md` for the blueprint rules and `.agents/skills/` for the `new-blueprint` and `review-blueprint` workflows.
+
+## License
+
+[Apache-2.0](LICENSE)

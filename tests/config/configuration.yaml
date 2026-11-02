@@ -1,0 +1,5 @@
+# One test instance per blueprint pair: "<name>_min" (required inputs only)
+# and "<name>_full" (every input set). Use fake entity IDs.
+# Blueprint paths are relative to blueprints/<domain>/ and live under "repo/".
+automation: []
+script: {}
