@@ -1,0 +1,108 @@
+blueprint:
+  name: MQTT Location Sync
+  author: walnuss0815
+  domain: automation
+  description: >-
+    Publishes the location of a person or device tracker to MQTT, including
+    an MQTT discovery config, so another Home Assistant instance on the same
+    broker gets a matching device tracker automatically.
+
+
+    [Documentation](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/mqtt_location_sync.md)
+  source_url: https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/mqtt_location_sync.yaml
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    tracked_entity:
+      name: Person or device tracker
+      description: Entity whose location is published.
+      selector:
+        entity:
+          filter:
+            - domain:
+                - person
+                - device_tracker
+    section_mqtt:
+      name: MQTT
+      icon: mdi:cog
+      collapsed: true
+      input:
+        topic_prefix:
+          name: Topic prefix
+          description: >
+            Base topic for state and attributes. The entity ID is appended,
+            e.g. location_sync/person_alex. Change it if two instances
+            publish an entity with the same ID.
+          default: location_sync
+          selector:
+            text:
+        discovery_prefix:
+          name: Discovery prefix
+          description: MQTT discovery prefix of the receiving instance.
+          default: homeassistant
+          selector:
+            text:
+
+mode: queued
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input tracked_entity
+  - trigger: homeassistant
+    event: start
+
+variables:
+  tracked_entity: !input tracked_entity
+  topic_prefix: !input topic_prefix
+  discovery_prefix: !input discovery_prefix
+  base_topic: "{{ topic_prefix ~ '/' ~ (tracked_entity | replace('.', '_')) }}"
+  unique_id: "{{ base_topic | slugify }}"
+  has_gps: >-
+    {{ state_attr(tracked_entity, 'latitude') is number
+       and state_attr(tracked_entity, 'longitude') is number }}
+
+conditions:
+  - condition: template
+    value_template: "{{ states(tracked_entity) not in ['unknown', 'unavailable'] }}"
+
+actions:
+  - action: mqtt.publish
+    data:
+      topic: "{{ discovery_prefix }}/device_tracker/{{ unique_id }}/config"
+      retain: true
+      payload: >-
+        {{ {
+          'name': state_attr(tracked_entity, 'friendly_name') or tracked_entity,
+          'unique_id': unique_id,
+          'state_topic': base_topic ~ '/state',
+          'json_attributes_topic': base_topic ~ '/attributes',
+          'payload_reset': 'gps',
+          'source_type': 'gps'
+        } | to_json }}
+  - if:
+      - condition: template
+        value_template: "{{ has_gps }}"
+    then:
+      - action: mqtt.publish
+        data:
+          topic: "{{ base_topic }}/attributes"
+          retain: true
+          payload: >-
+            {{ {
+              'latitude': state_attr(tracked_entity, 'latitude'),
+              'longitude': state_attr(tracked_entity, 'longitude'),
+              'gps_accuracy': state_attr(tracked_entity, 'gps_accuracy') | float(0)
+            } | to_json }}
+      # "gps" is payload_reset: the receiver derives the zone from the coordinates
+      - action: mqtt.publish
+        data:
+          topic: "{{ base_topic }}/state"
+          retain: true
+          payload: gps
+    else:
+      - action: mqtt.publish
+        data:
+          topic: "{{ base_topic }}/state"
+          retain: true
+          payload: "{{ states(tracked_entity) }}"

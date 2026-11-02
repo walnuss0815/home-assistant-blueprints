@@ -61,4 +61,16 @@ automation:
           seconds: 0
         adaptive_lighting_switch: switch.adaptive_lighting_room
         alarm_panel: alarm_control_panel.home
+  - alias: mqtt_location_sync_min
+    use_blueprint:
+      path: repo/mqtt_location_sync.yaml
+      input:
+        tracked_entity: person.alex
+  - alias: mqtt_location_sync_full
+    use_blueprint:
+      path: repo/mqtt_location_sync.yaml
+      input:
+        tracked_entity: device_tracker.alex_phone
+        topic_prefix: location_sync/home_a
+        discovery_prefix: homeassistant
 script: {}
