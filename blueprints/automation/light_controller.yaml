@@ -7,7 +7,7 @@ blueprint:
     illuminance condition, Adaptive Lighting and alarm panel support.
 
 
-    [Documentation and changelog](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/light_controller.md)
+    [Documentation](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/light_controller.md)
   source_url: https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/light_controller.yaml
   domain: automation
   homeassistant:

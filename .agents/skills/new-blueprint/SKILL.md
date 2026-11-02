@@ -34,7 +34,7 @@ blueprint:
     One or two sentences on what it does.
 
 
-    [Documentation and changelog](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/<name>.md)
+    [Documentation](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/<name>.md)
   source_url: https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/<name>.yaml
   homeassistant:
     min_version: 2024.10.0
@@ -116,12 +116,6 @@ What it does and how it behaves, in a few sentences.
 
 | Input | Required | Default | Description |
 | ----- | -------- | ------- | ----------- |
-
-## Changelog
-
-### 1.0.0
-
-- Initial release
 ````
 
 The import badge URL is the GitHub `blob` URL of the YAML file, URL-encoded (`:` = `%3A`, `/` = `%2F`).

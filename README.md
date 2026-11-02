@@ -22,7 +22,7 @@ Copy the `.yaml` file to `<config>/blueprints/<domain>/` (`automation` or `scrip
 
 ### Updates
 
-Imported blueprints are updated with **Blueprints > ⋮ > Re-import blueprint**. This overwrites the local file. Check the changelog in the blueprint's README first. Input names and selectors are never changed in an existing blueprint, new inputs always have defaults. Breaking changes are published as a new blueprint.
+Imported blueprints are updated with **Blueprints > ⋮ > Re-import blueprint**. This overwrites the local file. Check the commit history of the blueprint file first. Input names and selectors are never changed in an existing blueprint, new inputs always have defaults. Breaking changes are published as a new blueprint.
 
 ## Development
 

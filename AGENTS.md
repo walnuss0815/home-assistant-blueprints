@@ -5,7 +5,7 @@ Custom Home Assistant blueprints by walnuss0815. Published from `github.com/waln
 ## Layout
 
 - `blueprints/automation/<name>.yaml` and `blueprints/script/<name>.yaml`: the blueprints, `snake_case` file names.
-- `blueprints/<domain>/<name>.md`: README for each blueprint (what it does, devices needed, inputs table, import badge, changelog).
+- `blueprints/<domain>/<name>.md`: README for each blueprint (what it does, devices needed, inputs table, import badge).
 - `tests/config/configuration.yaml`: test instances (`use_blueprint`) for every blueprint, see Testing.
 - `scripts/check.sh`: runs everything CI runs. Needs only Docker (or `CONTAINER_ENGINE=podman`).
 - `.agents/skills/`: `new-blueprint` and `review-blueprint`. Use them.
@@ -17,7 +17,7 @@ Custom Home Assistant blueprints by walnuss0815. Published from `github.com/waln
 3. Every blueprint has `name`, `description`, `author: walnuss0815`, `domain`, `homeassistant.min_version` (full `YYYY.M.P`) and `source_url`.
    - `source_url`: `https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/<domain>/<name>.yaml`
    - `min_version` must cover the newest feature used: input sections >= 2024.6.0, merged `triggers:` input or `trigger:`/`action:` syntax >= 2024.10.0.
-4. `description`: short summary plus a link to the blueprint README. The changelog lives only in the README.
+4. `description`: short summary plus a link to the blueprint README. There is no manual changelog, the git history is the record, so write descriptive commit messages.
 5. Every input has `name`, `description`, and a specific selector (filter by `domain` / `device_class`). No selector means a plain text box, avoid it.
 6. No hardcoded entities, areas, or `webhook_id`. No `alias` or `id` at the top level.
 7. Optional inputs get a `default` (`[]` or `""` for entities) and the blueprint must guard against empty values.
