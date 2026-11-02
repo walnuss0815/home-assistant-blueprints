@@ -1,0 +1,650 @@
+blueprint:
+  name: Light Controller (Motion / Presence, with profiles)
+  description: >
+    Turns lights on when a motion or presence sensor triggers and off again
+    after no activity for a configurable time.
+
+
+    Profiles: Night (time window) and Day (default). Night can use its own
+    lights, off-delay and turn-on behavior.
+
+
+    Also: operation modes (incl. "turn off only, never turn on"), three
+    override types (block turn-on, block turn-off, block both), illuminance
+    condition, optional fixed brightness/color on turn-on (Day, Night),
+    Adaptive Lighting compatible (incl. sleep mode), alarm panel integration
+    (full light on alarm, lights off when armed away).
+
+
+    Lights switched on manually do not start the off-timer.
+
+
+    Illuminance: stale lux readings (sensor still reports the value from when
+    the lights were on) are handled in two ways: lights are turned on as soon
+    as the reading drops below the threshold while someone is present, and
+    the lux condition can be ignored for a short time after the lights were
+    turned off.
+
+
+    Adaptive Lighting: keep "Control brightness and color" off. Lights are
+    then turned on without brightness/color and Adaptive Lighting (including
+    its sleep mode) decides. Calls with explicit brightness/color are treated
+    by Adaptive Lighting as manual control for those lights.
+  domain: automation
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    section_basic:
+      name: Sensors & lights
+      icon: mdi:motion-sensor
+      input:
+        motion_entities:
+          name: Motion / presence sensors
+          description: >
+            Any of them turning on counts as presence. Lights are turned off
+            only when ALL of them are off for the profile's off-delay.
+          selector:
+            entity:
+              filter:
+                device_class:
+                  - motion
+                  - occupancy
+                  - presence
+
+              multiple: true
+        light_entities:
+          name: Lights
+          description: >
+            All lights of this room. Turn-off always affects all of them
+            (plus any Night lights); the Night profile can limit which of
+            them are turned on. Switching a light on manually does NOT start
+            the off-timer. The off-timer only starts when a presence sensor
+            turns off (or a turn-off block ends / Home Assistant restarts).
+          selector:
+            entity:
+              filter:
+                - domain: light
+              multiple: true
+        operation_mode:
+          name: Operation mode
+          default: auto_on_off
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - label: Turn on and off automatically
+                  value: auto_on_off
+                - label: Only turn off (never turn on automatically)
+                  value: off_only
+                - label: Only turn on (never turn off automatically)
+                  value: on_only
+
+        control_light_settings:
+          name: Control brightness and color
+          description: >
+            Off: lights are turned on without brightness or color, so Adaptive
+            Lighting (including its sleep mode) or the light itself decides.
+            On: brightness and color of the active profile (Day / Night) are
+            applied when lights are turned on.
+          default: false
+          selector:
+            boolean:
+
+    section_day:
+      name: Profile - Day (default)
+      icon: mdi:white-balance-sunny
+      collapsed: true
+      input:
+        day_wait:
+          name: Turn off after no presence for
+          default:
+            hours: 0
+            minutes: 5
+            seconds: 0
+          selector:
+            duration:
+        brightness_pct:
+          name: Brightness
+          description: Only used if "Control brightness and color" is on.
+          default: 100
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+        color_mode:
+          name: Color mode
+          description: Only used if "Control brightness and color" is on.
+          default: none
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - label: Keep light's color
+                  value: none
+                - label: Color temperature
+                  value: color_temp
+                - label: RGB color
+                  value: rgb
+        color_temp_kelvin:
+          name: Color temperature
+          description: Only used if "Control brightness and color" is on and Color mode is "Color temperature".
+          default: 2700
+          selector:
+            number:
+              min: 1500
+              max: 7000
+              step: 50
+              unit_of_measurement: K
+              mode: slider
+        rgb_color:
+          name: RGB color
+          description: Only used if "Control brightness and color" is on and Color mode is "RGB color".
+          default: [255, 200, 120]
+          selector:
+            color_rgb:
+
+    section_night:
+      name: Profile - Night
+      icon: mdi:weather-night
+      collapsed: true
+      input:
+        night_from:
+          name: Night starts
+          description: Same start and end time disables the Night profile.
+          default: "22:00:00"
+          selector:
+            time:
+        night_until:
+          name: Night ends
+          default: "06:00:00"
+          selector:
+            time:
+        night_lights:
+          name: Lights to turn on at night
+          description: >
+            Leave empty to use all lights (e.g. pick only path or strip lights).
+            Lights picked here are also turned off, even if they are not in the
+            main Lights list.
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain: light
+              multiple: true
+        night_wait:
+          name: Turn off after no presence for
+          default:
+            hours: 0
+            minutes: 1
+            seconds: 0
+          selector:
+            duration:
+        night_allow_turn_on:
+          name: Allow automatic turn-on at night
+          default: true
+          selector:
+            boolean:
+        night_brightness:
+          name: Night brightness
+          description: Only used if "Control brightness and color" is on.
+          default: 10
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+        night_color_temp:
+          name: Night color temperature
+          description: >
+            Only used if "Control brightness and color" is on. The Night
+            profile always applies color temperature (no RGB / keep color).
+          default: 2200
+          selector:
+            number:
+              min: 1500
+              max: 7000
+              step: 50
+              unit_of_measurement: K
+              mode: slider
+
+    section_conditions:
+      name: Conditions & overrides
+      icon: mdi:shield-lock-outline
+      collapsed: true
+      input:
+        block_on_entities:
+          name: Block turn-on - entities
+          description: >
+            While any of these is in one of the states below, lights are NOT
+            turned on automatically, but still turned off (e.g. cinema scene).
+            For an alarm panel, use the Alarm panel section instead.
+          default: []
+          selector:
+            entity:
+              multiple: true
+        block_on_states:
+          name: Block turn-on - states
+          default:
+            - "on"
+          selector:
+            text:
+              multiple: true
+        block_off_entities:
+          name: Block turn-off - entities
+          description: >
+            While any of these is in one of the states below, lights are NOT
+            turned off automatically, but still turned on (e.g. "keep lights
+            on" switch). When the block ends, the normal off-timer starts.
+          default: []
+          selector:
+            entity:
+              multiple: true
+        block_off_states:
+          name: Block turn-off - states
+          default:
+            - "on"
+          selector:
+            text:
+              multiple: true
+        block_both_entities:
+          name: Block turn-on and turn-off - entities
+          description: >
+            While any of these is in one of the states below, the automation
+            does nothing at all (full manual override).
+          default: []
+          selector:
+            entity:
+              multiple: true
+        block_both_states:
+          name: Block turn-on and turn-off - states
+          default:
+            - "on"
+          selector:
+            text:
+              multiple: true
+        illuminance_sensor:
+          name: Illuminance sensor (optional)
+          description: >
+            If set, lights are only turned on when the value is below the
+            threshold. If the sensor is in the same room, lights that are
+            already on raise the reading and can keep the remaining lights
+            from turning on. Many sensors (e.g. Zigbee) update the reading
+            only rarely, so right after the lights went off it can still be
+            high. If someone is present and the reading then drops below
+            the threshold, the lights are turned on at that moment (only if
+            presence started after the lights went off, so manually switched
+            off lights are not turned back on). See also the setting below.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                  device_class: illuminance
+        illuminance_threshold:
+          name: Illuminance threshold
+          default: 50
+          selector:
+            number:
+              min: 0
+              max: 100000
+              step: 1
+              unit_of_measurement: lx
+              mode: box
+        illuminance_ignore_after_off:
+          name: Ignore illuminance after lights went off for
+          description: >
+            After any of the lights was turned off, the illuminance condition
+            is ignored for this long, because the sensor still shows the high
+            value from when the lights were on (or while they fade out). Use
+            0 to disable. For sensors that update rarely (e.g. Zigbee motion
+            sensors) a few minutes can be needed.
+          default:
+            hours: 0
+            minutes: 2
+            seconds: 0
+          selector:
+            duration:
+
+    section_adaptive:
+      name: Adaptive Lighting
+      icon: mdi:theme-light-dark
+      collapsed: true
+      input:
+        adaptive_lighting_switch:
+          name: Adaptive Lighting main switch (optional)
+          description: >
+            Main switch of your Adaptive Lighting instance. Before turning on,
+            manual control is reset for the lights so Adaptive Lighting takes
+            over again.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - integration: adaptive_lighting
+                  domain: switch
+
+    section_alarm:
+      name: Alarm panel
+      icon: mdi:shield-home
+      collapsed: true
+      input:
+        alarm_panel:
+          name: Alarm panel (optional)
+          description: >
+            Triggered: all lights (incl. Night lights) on at 100% neutral
+            white, held on while the alarm is triggered, overriding lux,
+            profiles, operation mode and all blocks. Afterwards the normal
+            off-timer starts. Armed away / vacation: lights are turned off
+            immediately and not turned on automatically. Pending (entry
+            delay): normal operation, but lights turn on at night even if
+            "Allow automatic turn-on at night" is off. All other states:
+            normal operation.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: alarm_control_panel
+
+mode: restart
+
+trigger_variables:
+  block_off_entities: !input block_off_entities
+  block_off_states: !input block_off_states
+  block_both_entities: !input block_both_entities
+  block_both_states: !input block_both_states
+  alarm_panel: !input alarm_panel
+  lux_sensor: !input illuminance_sensor
+  lux_threshold: !input illuminance_threshold
+  motion_entities: !input motion_entities
+
+triggers:
+  - trigger: state
+    entity_id: !input motion_entities
+    not_from:
+      - unavailable
+      - unknown
+    to: "on"
+    id: motion_on
+  # No "for" here: the off-delay depends on the active profile and is
+  # waited in the actions. New motion restarts the run and cancels the wait.
+  # A sensor dropping to unavailable counts as "no presence", so lights
+  # don't stay on forever when a sensor dies while on.
+  - trigger: state
+    entity_id: !input motion_entities
+    not_from:
+      - unavailable
+      - unknown
+    to:
+      - "off"
+      - unavailable
+    id: motion_off
+  # Fires when a turn-off block ends, so lights don't stay on forever.
+  - trigger: template
+    value_template: >
+      {{ not (block_off_entities | select('is_state', block_off_states) | list | count > 0
+              or block_both_entities | select('is_state', block_both_states) | list | count > 0) }}
+    id: block_released
+  # Restart / reload drops a running delay, so re-check afterwards.
+  - trigger: homeassistant
+    event: start
+    id: recheck
+  - trigger: event
+    event_type: automation_reloaded
+    id: recheck
+  # The illuminance reading often updates late (still high from the lights
+  # that just went off). Fires when it drops below the threshold while
+  # presence is on, so the lights still come on. Template trigger so the
+  # sensor can stay optional.
+  - trigger: template
+    value_template: >
+      {{ lux_sensor not in ['', none]
+         and is_number(states(lux_sensor))
+         and states(lux_sensor) | float < lux_threshold | float
+         and motion_entities | select('is_state', 'on') | list | count > 0 }}
+    id: lux_dark
+  # Template triggers so the alarm panel can stay optional.
+  - trigger: template
+    value_template: "{{ alarm_panel not in ['', none] and is_state(alarm_panel, 'triggered') }}"
+    id: alarm_triggered
+  - trigger: template
+    value_template: "{{ alarm_panel not in ['', none] and not is_state(alarm_panel, 'triggered') }}"
+    id: alarm_cleared
+  - trigger: template
+    value_template: >
+      {{ alarm_panel not in ['', none]
+         and states(alarm_panel) in ['armed_away', 'armed_vacation'] }}
+    id: alarm_armed_away
+
+variables:
+  motion_entities: !input motion_entities
+  light_entities: !input light_entities
+  operation_mode: !input operation_mode
+  block_on_entities: !input block_on_entities
+  block_on_states: !input block_on_states
+  lux_sensor: !input illuminance_sensor
+  lux_threshold: !input illuminance_threshold
+  lux_grace: !input illuminance_ignore_after_off
+  adaptive_switch: !input adaptive_lighting_switch
+  day_wait: !input day_wait
+  control_settings: !input control_light_settings
+  day_brightness: !input brightness_pct
+  day_color_mode: !input color_mode
+  day_color_temp: !input color_temp_kelvin
+  night_from: !input night_from
+  night_until: !input night_until
+  night_lights: !input night_lights
+  night_wait: !input night_wait
+  night_allow_on: !input night_allow_turn_on
+  night_brightness: !input night_brightness
+  night_color_temp: !input night_color_temp
+  alarm_state: "{{ states(alarm_panel) if alarm_panel not in ['', none] else 'none' }}"
+  alarm_away: "{{ alarm_state in ['armed_away', 'armed_vacation'] }}"
+  turn_on_blocked: >
+    {{ alarm_away
+       or block_on_entities | select('is_state', block_on_states) | list | count > 0
+       or block_both_entities | select('is_state', block_both_states) | list | count > 0 }}
+  night_active: >
+    {% set t = now().strftime('%H:%M:%S') %}
+    {{ night_from != night_until and (
+         (night_from < night_until and night_from <= t < night_until)
+         or (night_from > night_until and (t >= night_from or t < night_until))) }}
+  profile: "{{ 'night' if night_active else 'day' }}"
+  all_lights: "{{ (light_entities + night_lights) | unique | list }}"
+  profile_lights: >
+    {{ night_lights if (profile == 'night' and night_lights | count > 0) else light_entities }}
+  lux_grace_seconds: >
+    {{ (lux_grace.get('days', 0) | int) * 86400 + (lux_grace.get('hours', 0) | int) * 3600
+       + (lux_grace.get('minutes', 0) | int) * 60 + (lux_grace.get('seconds', 0) | int) }}
+  # True while a light was turned off less than the grace time ago: the
+  # illuminance reading is not trustworthy then (still shows the old value).
+  lux_grace_active: >
+    {{ lux_grace_seconds | int > 0
+       and expand(all_lights)
+           | selectattr('state', 'eq', 'off')
+           | map(attribute='last_changed')
+           | select('gt', now() - timedelta(seconds=lux_grace_seconds | int))
+           | list | count > 0 }}
+  dark_enough: >
+    {{ lux_sensor in ['', none] or not is_number(states(lux_sensor))
+       or states(lux_sensor) | float < lux_threshold | float
+       or lux_grace_active }}
+  # True if presence started after the lights were turned off. Used for the
+  # "illuminance dropped" trigger, so lights that were switched off manually
+  # while someone is present are not turned back on.
+  presence_after_lights_off: >
+    {% set offs = expand(profile_lights) | selectattr('state', 'eq', 'off')
+                  | map(attribute='last_changed') | list %}
+    {% set ons = expand(motion_entities) | selectattr('state', 'eq', 'on')
+                 | map(attribute='last_changed') | list %}
+    {{ offs | count > 0 and ons | count > 0 and (ons | max) > (offs | max) }}
+  # Entry delay (pending) overrides "Allow automatic turn-on at night".
+  profile_allow_on: >
+    {{ (night_allow_on or alarm_state == 'pending') if profile == 'night' else true }}
+  profile_wait_seconds: >
+    {% set w = night_wait if profile == 'night' else day_wait %}
+    {{ (w.get('days', 0) | int) * 86400 + (w.get('hours', 0) | int) * 3600
+       + (w.get('minutes', 0) | int) * 60 + (w.get('seconds', 0) | int) }}
+  # Brightness/color are only set when "Control brightness and color" is on.
+  eff_custom: "{{ control_settings }}"
+  eff_brightness: >
+    {{ (night_brightness if profile == 'night' else day_brightness) | int }}
+  eff_color_mode: >
+    {{ 'color_temp' if profile == 'night' else day_color_mode }}
+  eff_color_temp: >
+    {{ (night_color_temp if profile == 'night' else day_color_temp) | int }}
+
+actions:
+  # Alarm over: hand the lights back to Adaptive Lighting.
+  - if:
+      - condition: trigger
+        id: alarm_cleared
+      - condition: template
+        value_template: "{{ adaptive_switch not in ['', none] }}"
+    then:
+      - action: adaptive_lighting.set_manual_control
+        data:
+          entity_id: "{{ adaptive_switch }}"
+          lights: "{{ all_lights }}"
+          manual_control: false
+  - choose:
+      # ---------- Alarm triggered -> everything on, hold ----------
+      # Checked on every trigger, so lights switched off during the alarm
+      # come back and no off-timer runs while it is triggered.
+      - alias: Alarm triggered - all lights on
+        conditions:
+          - condition: template
+            value_template: "{{ alarm_state == 'triggered' }}"
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ all_lights }}"
+            data:
+              brightness_pct: 100
+              color_temp_kelvin: 4000
+          - stop: Alarm triggered
+      # ---------- Armed away / vacation -> lights off now ----------
+      # Also covers the alarm returning to armed after a trigger.
+      - alias: Armed away - all lights off
+        conditions:
+          - condition: trigger
+            id:
+              - alarm_armed_away
+              - alarm_cleared
+          - condition: template
+            value_template: "{{ alarm_away }}"
+        sequence:
+          - action: light.turn_off
+            target:
+              entity_id: "{{ all_lights }}"
+          - stop: Armed away
+  # Wait the active profile's off-delay (also after a turn-off block ends).
+  - if:
+      - condition: trigger
+        id:
+          - motion_off
+          - block_released
+          - recheck
+          - alarm_cleared
+    then:
+      - delay:
+          seconds: "{{ profile_wait_seconds }}"
+  # Evaluated after the delay, so a block that started meanwhile is respected.
+  - variables:
+      turn_off_blocked: >
+        {{ block_off_entities | select('is_state', block_off_states) | list | count > 0
+           or block_both_entities | select('is_state', block_both_states) | list | count > 0 }}
+  - choose:
+      # ---------- Presence detected -> turn on ----------
+      - alias: Presence detected - turn on
+        conditions:
+          - condition: trigger
+            id:
+              - motion_on
+              - lux_dark
+          # Illuminance trigger: only if presence started after the lights went off.
+          - condition: template
+            value_template: "{{ trigger.id == 'motion_on' or presence_after_lights_off }}"
+          - condition: template
+            value_template: "{{ operation_mode != 'off_only' }}"
+          - condition: template
+            value_template: "{{ profile_allow_on }}"
+          - condition: template
+            value_template: "{{ not turn_on_blocked }}"
+          - condition: template
+            value_template: "{{ dark_enough }}"
+          - condition: template
+            value_template: "{{ profile_lights | select('is_state', 'off') | list | count > 0 }}"
+        sequence:
+          # Only touch lights that are off, so lights already on keep being adapted.
+          - variables:
+              lights_off: "{{ profile_lights | select('is_state', 'off') | list }}"
+          - if:
+              - condition: template
+                value_template: "{{ adaptive_switch not in ['', none] }}"
+            then:
+              - action: adaptive_lighting.set_manual_control
+                data:
+                  entity_id: "{{ adaptive_switch }}"
+                  lights: "{{ lights_off }}"
+                  manual_control: false
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ eff_custom and eff_color_mode == 'color_temp' }}"
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: "{{ lights_off }}"
+                    data:
+                      brightness_pct: "{{ eff_brightness }}"
+                      color_temp_kelvin: "{{ eff_color_temp }}"
+              - conditions:
+                  - condition: template
+                    value_template: "{{ eff_custom and eff_color_mode == 'rgb' }}"
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: "{{ lights_off }}"
+                    data:
+                      brightness_pct: "{{ eff_brightness }}"
+                      rgb_color: !input rgb_color
+              - conditions:
+                  - condition: template
+                    value_template: "{{ eff_custom }}"
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: "{{ lights_off }}"
+                    data:
+                      brightness_pct: "{{ eff_brightness }}"
+            default:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ lights_off }}"
+
+      # ---------- No presence for the profile's delay -> turn off ----------
+      - alias: No presence - turn off
+        conditions:
+          - condition: trigger
+            id:
+              - motion_off
+              - block_released
+              - recheck
+              - alarm_cleared
+          - condition: template
+            value_template: "{{ operation_mode != 'on_only' }}"
+          - condition: template
+            value_template: "{{ motion_entities | select('is_state', 'on') | list | count == 0 }}"
+          - condition: template
+            value_template: "{{ not turn_off_blocked }}"
+          - condition: template
+            value_template: "{{ all_lights | select('is_state', 'on') | list | count > 0 }}"
+        sequence:
+          - action: light.turn_off
+            target:
+              entity_id: "{{ all_lights }}"
