@@ -72,5 +72,5 @@ automation:
       input:
         tracked_entity: device_tracker.alex_phone
         topic_prefix: location_sync/home_a
-        discovery_prefix: homeassistant
+        discovery_prefix: ha_discovery
 script: {}
