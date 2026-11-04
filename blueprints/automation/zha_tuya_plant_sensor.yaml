@@ -1,0 +1,107 @@
+blueprint:
+  name: ZHA - Tuya Plant Sensor
+  description: Automation for Tuya Plant Sensor
+  domain: automation
+  input:
+    plant_sensor:
+      name: Tuya Plant Sensor
+      description: Select the target Tuya Plant Sensor
+      selector:
+        device:
+          filter:
+            - integration: zha
+              manufacturer: _TZE284_aao3yzhs
+              model: TS0601
+    plant_name:
+      name: Plant name
+      description: Name of the plant
+      selector:
+        text:
+    min_moisture:
+      name: Min soil moisture
+      description: Minimal soil moisture
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: percent
+    min_temperature:
+      name: Min temperature
+      description: Minimal temperature
+      default: 18
+      selector:
+        number:
+          min: -10
+          max: 60
+          unit_of_measurement: °C
+    max_temperature:
+      name: Max temperature
+      description: Max temperature
+      default: 28
+      selector:
+        number:
+          min: -10
+          max: 60
+          unit_of_measurement: °C
+    min_moisture_actions:
+      name: min_moisture_actions
+      description: |
+        You can use the following variables:
+          - temperature_entity
+          - temperature
+          - humidity_entity
+          - moisture
+          - plant_name
+      selector:
+        action:
+    min_temperature_actions:
+      name: min_temperature_actions
+      description: |
+        You can use the following variables:
+          - temperature_entity
+          - temperature
+          - humidity_entity
+          - moisture
+          - plant_name
+      selector:
+        action:
+    max_temperature_actions:
+      name: max_temperature_actions
+      description: |
+        You can use the following variables:
+          - temperature_entity
+          - temperature
+          - humidity_entity
+          - moisture
+          - plant_name
+      selector:
+        action:
+
+variables:
+  device_id: !input plant_sensor
+  temperature_entity: "{{ device_entities(device_id) | select('is_state_attr', 'device_class', 'temperature') | first }}"
+  temperature: "{{ states(temperature_entity) }}"
+  humidity_entity: "{{ device_entities(device_id) | select('is_state_attr', 'device_class', 'humidity') | first }}"
+  moisture: "{{ states(humidity_entity) }}"
+  plant_name: !input plant_name
+  min_temperature: !input min_temperature
+  max_temperature: !input max_temperature
+  min_moisture: !input min_moisture
+
+trigger:
+  - trigger: time_pattern
+    minutes: "5"
+
+action:
+  - choose:
+      - conditions:
+          - "{{ moisture < min_moisture }}"
+        sequence: !input "min_moisture_actions"
+      - conditions:
+          - "{{ temperature > max_temperature }}"
+        sequence: !input "max_temperature_actions"
+      - conditions:
+          - "{{ temperature < min_temperature }}"
+        sequence: !input "min_temperature_actions"
+mode: single
