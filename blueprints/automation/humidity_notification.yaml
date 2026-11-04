@@ -1,0 +1,68 @@
+blueprint:
+  name: High humidity level detection & notification for all humidity sensors
+  description:
+    Regularly test all sensors with 'humidity' device-class for crossing
+    a certain humidity level threshold and if so execute an action.
+  domain: automation
+  input:
+    threshold:
+      name: Humidity warning level threshold
+      description: Humidity sensors below threshold are assumed as humidity too high.
+      default: 70
+      selector:
+        number:
+          min: 5.0
+          max: 100.0
+          unit_of_measurement: "%"
+          mode: slider
+          step: 5.0
+    exclude:
+      name: Excluded Sensors
+      description: Humidity sensors (e.g. weather) to exclude from detection.
+      default: { entity_id: [] }
+      selector:
+        target:
+          entity:
+            device_class: humidity
+    actions:
+      name: Actions
+      description:
+        Notifications or similar to be run. {{sensors}} is replaced with
+        the names of sensors detecting high humidity.
+      selector:
+        action: {}
+variables:
+  threshold: !input "threshold"
+  exclude: !input "exclude"
+  sensor_ids: >-
+    {% set result = namespace(sensors=[]) %}
+    {% for state in states.sensor | selectattr('attributes.device_class', '==', 'humidity') %}
+      {% if 0 <= state.state | int(-1) > threshold | int and not state.entity_id in exclude.entity_id %}
+        {% set result.sensors = result.sensors + [state.entity_id] %}
+      {% endif %}
+    {% endfor %}
+    {{result.sensors}}
+  sensors: >-
+    {% set result = namespace(sensors=[]) %}
+    {% for id in sensor_ids %}
+      {% set result.sensors = result.sensors + [state_attr(id, 'friendly_name') ~ ' (' ~ states(id) ~ ' %)'] %}
+    {% endfor %}
+    {{result.sensors|join(', ')}}
+  areas: >-
+    {% set result = namespace(areas=[]) %}
+    {% for id in sensor_ids %}
+      {% set area = area_name(id) %}
+      {% if not area in result.areas %}
+        {% set result.areas = result.areas + [area] %}
+      {% endif %}
+    {% endfor %}
+    {{result.areas|join(', ')}}
+trigger:
+  - trigger: time_pattern
+    minutes: "30"
+action:
+  - choose:
+      - conditions:
+          - "{{ sensor_ids | list | length > 1}}"
+        sequence: !input "actions"
+mode: single
