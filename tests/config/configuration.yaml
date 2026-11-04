@@ -129,4 +129,37 @@ automation:
           hours: 0
           minutes: 5
           seconds: 0
+  - alias: zha_tuya_plant_sensor_min
+    use_blueprint:
+      path: repo/zha_tuya_plant_sensor.yaml
+      input:
+        plant_name: Ficus
+        moisture_entity: sensor.ficus_soil_moisture
+        temperature_entity: sensor.ficus_temperature
+  - alias: zha_tuya_plant_sensor_full
+    use_blueprint:
+      path: repo/zha_tuya_plant_sensor.yaml
+      input:
+        plant_name: Ficus
+        moisture_entity: sensor.ficus_soil_moisture
+        temperature_entity: sensor.ficus_temperature
+        min_moisture: 40
+        min_temperature: 15.5
+        max_temperature: 30
+        hold_time:
+          hours: 0
+          minutes: 5
+          seconds: 0
+        min_moisture_actions:
+          - action: persistent_notification.create
+            data:
+              message: "{{ plant_name }} is too dry ({{ moisture }} %)"
+        min_temperature_actions:
+          - action: persistent_notification.create
+            data:
+              message: "{{ plant_name }} is too cold ({{ temperature }})"
+        max_temperature_actions:
+          - action: persistent_notification.create
+            data:
+              message: "{{ plant_name }} is too warm ({{ temperature }})"
 script: {}

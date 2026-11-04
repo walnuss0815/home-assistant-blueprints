@@ -1,107 +1,173 @@
 blueprint:
-  name: ZHA - Tuya Plant Sensor
-  description: Automation for Tuya Plant Sensor
+  name: ZHA Tuya plant sensor
+  author: walnuss0815
   domain: automation
+  description: >-
+    Runs actions when the soil moisture of a plant drops below a minimum or
+    its temperature leaves a range. Made for the Tuya TS0601 plant sensor on
+    ZHA.
+
+
+    [Documentation](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/zha_tuya_plant_sensor.md)
+  source_url: https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/zha_tuya_plant_sensor.yaml
+  homeassistant:
+    min_version: 2024.10.0
   input:
-    plant_sensor:
-      name: Tuya Plant Sensor
-      description: Select the target Tuya Plant Sensor
-      selector:
-        device:
-          filter:
-            - integration: zha
-              manufacturer: _TZE284_aao3yzhs
-              model: TS0601
-    plant_name:
-      name: Plant name
-      description: Name of the plant
-      selector:
-        text:
-    min_moisture:
-      name: Min soil moisture
-      description: Minimal soil moisture
-      default: 80
-      selector:
-        number:
-          min: 0
-          max: 100
-          unit_of_measurement: percent
-    min_temperature:
-      name: Min temperature
-      description: Minimal temperature
-      default: 18
-      selector:
-        number:
-          min: -10
-          max: 60
-          unit_of_measurement: °C
-    max_temperature:
-      name: Max temperature
-      description: Max temperature
-      default: 28
-      selector:
-        number:
-          min: -10
-          max: 60
-          unit_of_measurement: °C
-    min_moisture_actions:
-      name: min_moisture_actions
-      description: |
-        You can use the following variables:
-          - temperature_entity
-          - temperature
-          - humidity_entity
-          - moisture
-          - plant_name
-      selector:
-        action:
-    min_temperature_actions:
-      name: min_temperature_actions
-      description: |
-        You can use the following variables:
-          - temperature_entity
-          - temperature
-          - humidity_entity
-          - moisture
-          - plant_name
-      selector:
-        action:
-    max_temperature_actions:
-      name: max_temperature_actions
-      description: |
-        You can use the following variables:
-          - temperature_entity
-          - temperature
-          - humidity_entity
-          - moisture
-          - plant_name
-      selector:
-        action:
+    section_sensor:
+      name: Plant & sensor
+      icon: mdi:flower
+      input:
+        plant_name:
+          name: Plant name
+          description: Name of the plant, available to the actions.
+          selector:
+            text:
+        moisture_entity:
+          name: Soil moisture sensor
+          description: Soil moisture of the plant sensor.
+          selector:
+            entity:
+              filter:
+                - integration: zha
+                  domain: sensor
+                  device_class:
+                    - moisture
+                    - humidity
+        temperature_entity:
+          name: Temperature sensor
+          description: Temperature of the plant sensor.
+          selector:
+            entity:
+              filter:
+                - integration: zha
+                  domain: sensor
+                  device_class: temperature
+    section_thresholds:
+      name: Thresholds
+      icon: mdi:tune
+      collapsed: true
+      input:
+        min_moisture:
+          name: Minimum soil moisture
+          description: The soil is too dry below this value.
+          default: 80
+          selector:
+            number:
+              min: 0
+              max: 100
+              unit_of_measurement: "%"
+        min_temperature:
+          name: Minimum temperature
+          description: >-
+            Too cold below this value, in the unit of the temperature sensor.
+            Keep it below the maximum temperature.
+          default: 18
+          selector:
+            number:
+              min: -50
+              max: 100
+              step: 0.5
+              mode: box
+        max_temperature:
+          name: Maximum temperature
+          description: >-
+            Too warm above this value, in the unit of the temperature sensor.
+            Keep it above the minimum temperature.
+          default: 28
+          selector:
+            number:
+              min: -50
+              max: 100
+              step: 0.5
+              mode: box
+        hold_time:
+          name: Hold time
+          description: >-
+            A threshold must stay crossed this long before the actions run.
+            Avoids repeated runs when a value hovers around a threshold.
+          default:
+            hours: 0
+            minutes: 10
+            seconds: 0
+          selector:
+            duration:
+    section_actions:
+      name: Actions
+      icon: mdi:bell
+      collapsed: true
+      input:
+        min_moisture_actions:
+          name: Soil too dry
+          description: >-
+            Actions to run when the soil moisture is below the minimum.
+            Available variables: plant_name, moisture_entity, moisture,
+            temperature_entity, temperature, min_moisture, min_temperature,
+            max_temperature.
+          default: []
+          selector:
+            action:
+        min_temperature_actions:
+          name: Too cold
+          description: >-
+            Actions to run when the temperature is below the minimum.
+            Available variables: plant_name, moisture_entity, moisture,
+            temperature_entity, temperature, min_moisture, min_temperature,
+            max_temperature.
+          default: []
+          selector:
+            action:
+        max_temperature_actions:
+          name: Too warm
+          description: >-
+            Actions to run when the temperature is above the maximum.
+            Available variables: plant_name, moisture_entity, moisture,
+            temperature_entity, temperature, min_moisture, min_temperature,
+            max_temperature.
+          default: []
+          selector:
+            action:
+
+mode: queued
+max_exceeded: silent
 
 variables:
-  device_id: !input plant_sensor
-  temperature_entity: "{{ device_entities(device_id) | select('is_state_attr', 'device_class', 'temperature') | first }}"
-  temperature: "{{ states(temperature_entity) }}"
-  humidity_entity: "{{ device_entities(device_id) | select('is_state_attr', 'device_class', 'humidity') | first }}"
-  moisture: "{{ states(humidity_entity) }}"
   plant_name: !input plant_name
+  moisture_entity: !input moisture_entity
+  temperature_entity: !input temperature_entity
+  min_moisture: !input min_moisture
   min_temperature: !input min_temperature
   max_temperature: !input max_temperature
-  min_moisture: !input min_moisture
+  moisture: "{{ states(moisture_entity) }}"
+  temperature: "{{ states(temperature_entity) }}"
 
-trigger:
-  - trigger: time_pattern
-    minutes: "5"
+triggers:
+  - trigger: numeric_state
+    id: min_moisture
+    entity_id: !input moisture_entity
+    below: !input min_moisture
+    for: !input hold_time
+  - trigger: numeric_state
+    id: min_temperature
+    entity_id: !input temperature_entity
+    below: !input min_temperature
+    for: !input hold_time
+  - trigger: numeric_state
+    id: max_temperature
+    entity_id: !input temperature_entity
+    above: !input max_temperature
+    for: !input hold_time
 
-action:
+actions:
   - choose:
       - conditions:
-          - "{{ moisture < min_moisture }}"
-        sequence: !input "min_moisture_actions"
+          - condition: trigger
+            id: min_moisture
+        sequence: !input min_moisture_actions
       - conditions:
-          - "{{ temperature > max_temperature }}"
-        sequence: !input "max_temperature_actions"
+          - condition: trigger
+            id: min_temperature
+        sequence: !input min_temperature_actions
       - conditions:
-          - "{{ temperature < min_temperature }}"
-        sequence: !input "min_temperature_actions"
-mode: single
+          - condition: trigger
+            id: max_temperature
+        sequence: !input max_temperature_actions
