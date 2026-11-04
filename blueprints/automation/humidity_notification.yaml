@@ -1,68 +1,84 @@
 blueprint:
-  name: High humidity level detection & notification for all humidity sensors
-  description:
-    Regularly test all sensors with 'humidity' device-class for crossing
-    a certain humidity level threshold and if so execute an action.
+  name: High humidity notification
+  author: walnuss0815
   domain: automation
+  description: >-
+    Runs actions when a humidity sensor rises above a threshold.
+
+
+    [Documentation](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/humidity_notification.md)
+  source_url: https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/humidity_notification.yaml
+  homeassistant:
+    min_version: 2026.7.0
   input:
-    threshold:
-      name: Humidity warning level threshold
-      description: Humidity sensors below threshold are assumed as humidity too high.
-      default: 70
-      selector:
-        number:
-          min: 5.0
-          max: 100.0
-          unit_of_measurement: "%"
-          mode: slider
-          step: 5.0
-    exclude:
-      name: Excluded Sensors
-      description: Humidity sensors (e.g. weather) to exclude from detection.
-      default: { entity_id: [] }
+    sensors:
+      name: Humidity sensors
+      description: >-
+        Sensors, devices, areas, floors or labels to watch. Devices, areas,
+        floors and labels also include climate, humidifier and weather
+        entities.
       selector:
         target:
           entity:
-            device_class: humidity
+            - domain: sensor
+              device_class: humidity
+    threshold:
+      name: Humidity threshold
+      description: The actions run when a sensor rises above this humidity.
+      default: 70
+      selector:
+        number:
+          min: 5
+          max: 100
+          step: 5
+          unit_of_measurement: "%"
+          mode: slider
     actions:
       name: Actions
-      description:
-        Notifications or similar to be run. {{sensors}} is replaced with
-        the names of sensors detecting high humidity.
+      description: >-
+        Notifications or similar to run. Variables: sensor (name), value
+        (reading when the threshold was crossed, with unit), area and
+        sensor_id (entity ID).
       selector:
         action: {}
+    section_options:
+      name: Options
+      icon: mdi:cog
+      collapsed: true
+      input:
+        hold_time:
+          name: Hold time
+          description: >-
+            The humidity must stay above the threshold this long before the
+            actions run. Filters out short spikes. Set to 0 to run right away.
+          default:
+            hours: 0
+            minutes: 10
+            seconds: 0
+          selector:
+            duration:
+
+mode: queued
+max_exceeded: silent
+
+triggers:
+  - trigger: humidity.crossed_threshold
+    target: !input sensors
+    options:
+      threshold:
+        type: above
+        value:
+          number: !input threshold
+      behavior: each
+      for: !input hold_time
+
 variables:
-  threshold: !input "threshold"
-  exclude: !input "exclude"
-  sensor_ids: >-
-    {% set result = namespace(sensors=[]) %}
-    {% for state in states.sensor | selectattr('attributes.device_class', '==', 'humidity') %}
-      {% if 0 <= state.state | int(-1) > threshold | int and not state.entity_id in exclude.entity_id %}
-        {% set result.sensors = result.sensors + [state.entity_id] %}
-      {% endif %}
-    {% endfor %}
-    {{result.sensors}}
-  sensors: >-
-    {% set result = namespace(sensors=[]) %}
-    {% for id in sensor_ids %}
-      {% set result.sensors = result.sensors + [state_attr(id, 'friendly_name') ~ ' (' ~ states(id) ~ ' %)'] %}
-    {% endfor %}
-    {{result.sensors|join(', ')}}
-  areas: >-
-    {% set result = namespace(areas=[]) %}
-    {% for id in sensor_ids %}
-      {% set area = area_name(id) %}
-      {% if not area in result.areas %}
-        {% set result.areas = result.areas + [area] %}
-      {% endif %}
-    {% endfor %}
-    {{result.areas|join(', ')}}
-trigger:
-  - trigger: time_pattern
-    minutes: "30"
-action:
-  - choose:
-      - conditions:
-          - "{{ sensor_ids | list | length > 1}}"
-        sequence: !input "actions"
-mode: single
+  sensor_id: "{{ trigger.entity_id }}"
+  sensor: "{{ trigger.to_state.name }}"
+  # climate, humidifier and weather entities carry the humidity in an attribute
+  value: >-
+    {%- set s = trigger.to_state -%}
+    {{ s.state if s.domain == 'sensor' else s.attributes.current_humidity | default(s.attributes.humidity) }} %
+  area: "{{ area_name(trigger.entity_id) or '' }}"
+
+actions: !input actions

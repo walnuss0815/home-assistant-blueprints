@@ -2,6 +2,34 @@
 # and "<name>_full" (every input set). Use fake entity IDs.
 # Blueprint paths are relative to blueprints/<domain>/ and live under "repo/".
 automation:
+  - alias: humidity_notification_min
+    use_blueprint:
+      path: repo/humidity_notification.yaml
+      input:
+        sensors:
+          entity_id: sensor.bathroom_humidity
+        actions:
+          - action: persistent_notification.create
+            data:
+              message: "High humidity: {{ sensor }} {{ value }} ({{ area }})"
+  - alias: humidity_notification_full
+    use_blueprint:
+      path: repo/humidity_notification.yaml
+      input:
+        sensors:
+          entity_id:
+            - sensor.cellar_humidity
+          area_id: bathroom
+          label_id: humidity_alerts
+        threshold: 65
+        actions:
+          - action: persistent_notification.create
+            data:
+              message: "High humidity: {{ sensor }} {{ value }} ({{ area }})"
+        hold_time:
+          hours: 0
+          minutes: 5
+          seconds: 0
   - alias: light_controller_min
     use_blueprint:
       path: repo/light_controller.yaml
