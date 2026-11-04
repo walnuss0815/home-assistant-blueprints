@@ -6,6 +6,7 @@ Custom [Home Assistant blueprints](https://www.home-assistant.io/docs/blueprint/
 
 | Blueprint | Domain | Import |
 | --------- | ------ | ------ |
+| [High humidity notification](blueprints/automation/humidity_notification.md) | automation | [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fwalnuss0815%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fhumidity_notification.yaml) |
 | [Light Controller](blueprints/automation/light_controller.md) | automation | [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fwalnuss0815%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Flight_controller.yaml) |
 | [MQTT Location Sync](blueprints/automation/mqtt_location_sync.md) | automation | [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fwalnuss0815%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fmqtt_location_sync.yaml) |
 
