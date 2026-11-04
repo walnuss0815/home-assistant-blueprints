@@ -101,4 +101,32 @@ automation:
         tracked_entity: device_tracker.alex_phone
         topic_prefix: location_sync/home_a
         discovery_prefix: ha_discovery
+  - alias: temperature_notification_min
+    use_blueprint:
+      path: repo/temperature_notification.yaml
+      input:
+        sensors:
+          entity_id: sensor.bedroom_temperature
+        actions:
+          - action: persistent_notification.create
+            data:
+              message: "Low temperature: {{ sensor }} {{ value }} ({{ area }})"
+  - alias: temperature_notification_full
+    use_blueprint:
+      path: repo/temperature_notification.yaml
+      input:
+        sensors:
+          entity_id:
+            - sensor.garage_temperature
+          floor_id: ground_floor
+        threshold: 64
+        unit: "°F"
+        actions:
+          - action: persistent_notification.create
+            data:
+              message: "Low temperature: {{ sensor }} {{ value }} ({{ area }})"
+        hold_time:
+          hours: 0
+          minutes: 5
+          seconds: 0
 script: {}
