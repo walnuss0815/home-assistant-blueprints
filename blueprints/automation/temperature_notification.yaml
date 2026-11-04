@@ -1,68 +1,100 @@
 blueprint:
-  name: Low temperature detection & notification for all temperature sensors
-  description:
-    Regularly test all sensors with 'temperature' device-class for crossing
-    a certain temperature level threshold and if so execute an action.
+  name: Low temperature notification
+  author: walnuss0815
   domain: automation
+  description: >-
+    Runs actions when a temperature sensor drops below a threshold.
+
+
+    [Documentation](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/temperature_notification.md)
+  source_url: https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/temperature_notification.yaml
+  homeassistant:
+    min_version: 2026.7.0
   input:
-    threshold:
-      name: Temperature warning level threshold
-      description: Temperature sensors below threshold are assumed as temperature too low.
-      default: 18
-      selector:
-        number:
-          min: 5.0
-          max: 30.0
-          unit_of_measurement: "°C"
-          mode: slider
-          step: 0.5
-    exclude:
-      name: Excluded Sensors
-      description: Temperature sensors (e.g. weather) to exclude from detection.
-      default: { entity_id: [] }
+    sensors:
+      name: Temperature sensors
+      description: >-
+        Sensors, devices, areas, floors or labels to watch. Devices, areas,
+        floors and labels also include climate, water heater and weather
+        entities.
       selector:
         target:
           entity:
-            device_class: temperature
+            - domain: sensor
+              device_class: temperature
+    threshold:
+      name: Temperature threshold
+      description: The actions run when a sensor drops below this temperature.
+      default: 18
+      selector:
+        number:
+          min: -50
+          max: 100
+          step: 0.5
+          mode: box
+    unit:
+      name: Threshold unit
+      description: Unit of the threshold. Readings in another unit are converted.
+      default: "°C"
+      selector:
+        select:
+          options:
+            - "°C"
+            - "°F"
     actions:
       name: Actions
-      description:
-        Notifications or similar to be run. {{sensors}} is replaced with
-        the names of sensors detecting low temperature.
+      description: >-
+        Notifications or similar to run. Variables: sensor (name), value
+        (reading when the threshold was crossed, with unit), area and
+        sensor_id (entity ID).
       selector:
         action: {}
+    section_options:
+      name: Options
+      icon: mdi:cog
+      collapsed: true
+      input:
+        hold_time:
+          name: Hold time
+          description: >-
+            The temperature must stay below the threshold this long before the
+            actions run. Filters out short drops, e.g. from airing a room. Set
+            to 0 to run right away.
+          default:
+            hours: 0
+            minutes: 10
+            seconds: 0
+          selector:
+            duration:
+
+mode: queued
+max_exceeded: silent
+
+triggers:
+  - trigger: temperature.crossed_threshold
+    target: !input sensors
+    options:
+      threshold:
+        type: below
+        value:
+          number: !input threshold
+          unit_of_measurement: !input unit
+      behavior: each
+      for: !input hold_time
+
 variables:
-  threshold: !input "threshold"
-  exclude: !input "exclude"
-  sensor_ids: >-
-    {% set result = namespace(sensors=[]) %}
-    {% for state in states.sensor | selectattr('attributes.device_class', '==', 'temperature') %}
-      {% if 0 <= state.state | int(100) < threshold | int and not state.entity_id in exclude.entity_id %}
-        {% set result.sensors = result.sensors + [state.entity_id] %}
-      {% endif %}
-    {% endfor %}
-    {{result.sensors}}
-  sensors: >-
-    {% set result = namespace(sensors=[]) %}
-    {% for id in sensor_ids %}
-      {% set result.sensors = result.sensors + [state_attr(id, 'friendly_name') ~ ' (' ~ states(id) ~ ' °C)'] %}
-    {% endfor %}
-    {{result.sensors|join(', ')}}
-  areas: >-
-    {% set result = namespace(areas=[]) %}
-    {% for id in sensor_ids %}
-      {% set area = area_name(id) %}
-      {% if not area in result.areas %}
-        {% set result.areas = result.areas + [area] %}
-      {% endif %}
-    {% endfor %}
-    {{result.areas|join(', ')}}
-trigger:
-  - trigger: time_pattern
-    minutes: "/5"
-action:
-  - choose:
-      - conditions:
-          - "{{ sensor_ids | list | length > 1}}"
-        sequence: !input "actions"
-mode: single
+  sensor_id: "{{ trigger.entity_id }}"
+  sensor: "{{ trigger.to_state.name }}"
+  # climate and water_heater report current_temperature in the system unit, without a unit attribute
+  value: >-
+    {%- set s = trigger.to_state -%}
+    {%- if s.domain == 'sensor' -%}
+      {{ (s.state ~ ' ' ~ s.attributes.unit_of_measurement | default('')) | trim }}
+    {%- elif s.domain == 'weather' -%}
+      {{ (s.attributes.temperature ~ ' ' ~ s.attributes.temperature_unit | default('')) | trim }}
+    {%- else -%}
+      {{ s.attributes.current_temperature }}
+    {%- endif -%}
+  area: "{{ area_name(trigger.entity_id) or '' }}"
+
+actions: !input actions
