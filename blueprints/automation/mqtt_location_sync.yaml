@@ -103,13 +103,23 @@ actions:
           retain: true
           payload: gps
     else:
-      # clear coordinates stored from an earlier GPS state, they would override the state
-      - action: mqtt.publish
-        data:
-          topic: "{{ base_topic }}/attributes"
-          retain: true
-          payload: >-
-            {{ {'latitude': none, 'longitude': none} | to_json }}
+      # Clear coordinates from an earlier GPS state once: the receiver logs a
+      # warning for every null-coordinates message. Without a known previous
+      # state (start, unknown, unavailable) clear too, to be safe.
+      - if:
+          - condition: template
+            value_template: >-
+              {{ trigger.from_state is not defined
+                 or trigger.from_state is none
+                 or trigger.from_state.state in ['unknown', 'unavailable']
+                 or trigger.from_state.attributes.latitude is number }}
+        then:
+          - action: mqtt.publish
+            data:
+              topic: "{{ base_topic }}/attributes"
+              retain: true
+              payload: >-
+                {{ {'latitude': none, 'longitude': none} | to_json }}
       - action: mqtt.publish
         data:
           topic: "{{ base_topic }}/state"
