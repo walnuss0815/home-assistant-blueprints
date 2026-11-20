@@ -101,6 +101,45 @@ automation:
         tracked_entity: device_tracker.alex_phone
         topic_prefix: location_sync/home_a
         discovery_prefix: ha_discovery
+  - alias: sunrise_light_alarm_min
+    use_blueprint:
+      path: repo/sunrise_light_alarm.yaml
+      input:
+        target_lights:
+          - light.bedroom
+  - alias: sunrise_light_alarm_full
+    use_blueprint:
+      path: repo/sunrise_light_alarm.yaml
+      input:
+        use_fixed_time: true
+        fixed_time: "06:30:00"
+        use_helper: true
+        alarm_helper: input_datetime.wake_up
+        weekdays:
+          - mon
+          - wed
+          - fri
+        use_phone: true
+        phone_alarm_sensor: sensor.pixel_next_alarm
+        phone_presence: person.alex
+        target_lights:
+          - light.bedroom
+          - light.bedroom_strip
+        fade_minutes: 45
+        end_kelvin: 5000
+        red_phase_pct: 30
+        brightness_curve: linear
+        step_seconds: 20
+        alarm_actions:
+          - action: persistent_notification.create
+            data:
+              message: Good morning
+        keep_on_minutes: 60
+        require_someone_home: false
+        workday_sensor: binary_sensor.workday
+        days_off_calendar: calendar.vacation
+        holidays_apply_to_phone: true
+        skip_if_lights_on: false
   - alias: temperature_notification_min
     use_blueprint:
       path: repo/temperature_notification.yaml
