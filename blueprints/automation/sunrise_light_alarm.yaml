@@ -1,30 +1,17 @@
 blueprint:
   name: Sunrise light alarm (red → morning sun)
-  description: >
-    Simulates a sunrise that **finishes at your wake-up time**. The lights start at
-    1 % deep red, fade through orange/amber and end at 100 % daylight-white.
-
-
-    **Wake-up time sources** (enable any combination):
-
-    * a fixed time set in this blueprint,
-
-    * a time helper (`input_datetime`, time-only or date+time),
-
-    * your Android phone's *next alarm* sensor (Companion app), used only while
-    the phone is at home.
-
-
-    If an alarm is set closer than the fade duration, the sunrise is shortened so it
-    still ends on time. Switching off any of the lights cancels the sunrise and the
-    lights stay off; it will not start again for the same alarm.
-
-
-    Designed for Zigbee (ZHA / Zigbee2MQTT) colour bulbs that support both
-    xy colour and colour temperature.
+  author: walnuss0815
   domain: automation
+  description: >-
+    Simulates a sunrise that finishes at your wake-up time: lights fade from
+    deep red through amber to daylight white. The wake-up time comes from a
+    fixed time, a time helper or your Android phone's next alarm.
+
+
+    [Documentation](https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/sunrise_light_alarm.md)
+  source_url: https://github.com/walnuss0815/home-assistant-blueprints/blob/main/blueprints/automation/sunrise_light_alarm.yaml
   homeassistant:
-    min_version: "2026.11.0"
+    min_version: 2026.11.0
   input:
     alarm_section:
       name: Wake-up time
@@ -33,11 +20,13 @@ blueprint:
       input:
         use_fixed_time:
           name: Use a fixed time
+          description: Use the fixed wake-up time below.
           default: false
           selector:
             boolean: {}
         fixed_time:
           name: Fixed wake-up time
+          description: The sunrise ends at this time on the active days.
           default: "07:00:00"
           visible:
             field: use_fixed_time
@@ -72,15 +61,23 @@ blueprint:
               multiple: true
               mode: list
               options:
-                - { label: Monday, value: mon }
-                - { label: Tuesday, value: tue }
-                - { label: Wednesday, value: wed }
-                - { label: Thursday, value: thu }
-                - { label: Friday, value: fri }
-                - { label: Saturday, value: sat }
-                - { label: Sunday, value: sun }
+                - label: Monday
+                  value: mon
+                - label: Tuesday
+                  value: tue
+                - label: Wednesday
+                  value: wed
+                - label: Thursday
+                  value: thu
+                - label: Friday
+                  value: fri
+                - label: Saturday
+                  value: sat
+                - label: Sunday
+                  value: sun
         use_phone:
           name: Use phone's next alarm (Android)
+          description: Use the next alarm sensor of the Home Assistant Companion app.
           default: false
           selector:
             boolean: {}
@@ -126,6 +123,7 @@ blueprint:
                 - domain: light
         fade_minutes:
           name: Sunrise duration
+          description: How long the fade takes. It is shortened if the alarm is set later.
           default: 30
           selector:
             number:
@@ -154,12 +152,15 @@ blueprint:
               unit_of_measurement: "%"
         brightness_curve:
           name: Brightness curve
+          description: How the brightness rises over the sunrise.
           default: natural
           selector:
             select:
               options:
-                - { label: "Natural (slow start, faster at the end)", value: natural }
-                - { label: Linear, value: linear }
+                - label: Natural (slow start, faster at the end)
+                  value: natural
+                - label: Linear
+                  value: linear
         step_seconds:
           name: Update interval
           description: >
@@ -234,6 +235,7 @@ blueprint:
             boolean: {}
         skip_if_lights_on:
           name: Skip if the lights are already on
+          description: Do not start the sunrise if any of the lights is on.
           default: true
           selector:
             boolean: {}
