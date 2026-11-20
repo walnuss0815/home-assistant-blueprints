@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # renovate: datasource=docker depName=ghcr.io/home-assistant/home-assistant
-HA_VERSION="${HA_VERSION:-2026.10.4}"
+HA_VERSION="${HA_VERSION:-2026.11.2}"
 # renovate: datasource=docker depName=pipelinecomponents/yamllint
 YAMLLINT_VERSION="${YAMLLINT_VERSION:-0.35.27}"
 
