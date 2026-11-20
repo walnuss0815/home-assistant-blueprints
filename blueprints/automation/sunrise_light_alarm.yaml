@@ -1,0 +1,493 @@
+blueprint:
+  name: Sunrise light alarm (red → morning sun)
+  description: >
+    Simulates a sunrise that **finishes at your wake-up time**. The lights start at
+    1 % deep red, fade through orange/amber and end at 100 % daylight-white.
+
+
+    **Wake-up time sources** (enable any combination):
+
+    * a fixed time set in this blueprint,
+
+    * a time helper (`input_datetime`, time-only or date+time),
+
+    * your Android phone's *next alarm* sensor (Companion app), used only while
+    the phone is at home.
+
+
+    If an alarm is set closer than the fade duration, the sunrise is shortened so it
+    still ends on time. Switching off any of the lights cancels the sunrise and the
+    lights stay off; it will not start again for the same alarm.
+
+
+    Designed for Zigbee (ZHA / Zigbee2MQTT) colour bulbs that support both
+    xy colour and colour temperature.
+  domain: automation
+  homeassistant:
+    min_version: "2026.11.0"
+  input:
+    alarm_section:
+      name: Wake-up time
+      icon: mdi:alarm
+      description: Choose one or more sources for the alarm time. The sunrise ends at that time.
+      input:
+        use_fixed_time:
+          name: Use a fixed time
+          default: false
+          selector:
+            boolean: {}
+        fixed_time:
+          name: Fixed wake-up time
+          default: "07:00:00"
+          visible:
+            field: use_fixed_time
+            value: true
+          selector:
+            time: {}
+        use_helper:
+          name: Use a time helper
+          description: An input_datetime helper you can change from a dashboard.
+          default: true
+          selector:
+            boolean: {}
+        alarm_helper:
+          name: Time helper
+          description: >
+            Time-only helper = daily alarm (weekday filter applies).
+            Date + time helper = one-off alarm on that date.
+          default: ""
+          visible:
+            field: use_helper
+            value: true
+          selector:
+            entity:
+              filter:
+                - domain: input_datetime
+        weekdays:
+          name: Active days (fixed time and time-only helper)
+          description: Not applied to the phone alarm, which follows your phone's own schedule.
+          default: [mon, tue, wed, thu, fri]
+          selector:
+            select:
+              multiple: true
+              mode: list
+              options:
+                - { label: Monday, value: mon }
+                - { label: Tuesday, value: tue }
+                - { label: Wednesday, value: wed }
+                - { label: Thursday, value: thu }
+                - { label: Friday, value: fri }
+                - { label: Saturday, value: sat }
+                - { label: Sunday, value: sun }
+        use_phone:
+          name: Use phone's next alarm (Android)
+          default: false
+          selector:
+            boolean: {}
+        phone_alarm_sensor:
+          name: Next alarm sensor
+          description: "Companion app sensor, e.g. sensor.pixel_next_alarm"
+          default: ""
+          visible:
+            field: use_phone
+            value: true
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                  device_class: timestamp
+        phone_presence:
+          name: Phone presence
+          description: >
+            Device tracker or person for the phone. The phone alarm is only used
+            while this entity is 'home'. Leave empty to skip the check.
+          default: ""
+          visible:
+            field: use_phone
+            value: true
+          selector:
+            entity:
+              filter:
+                - domain: [device_tracker, person]
+
+    sunrise_section:
+      name: Sunrise
+      icon: mdi:weather-sunset-up
+      input:
+        target_lights:
+          name: Lights
+          description: >
+            Colour lights (xy + colour temperature). For several bulbs, a Zigbee
+            group entity is gentler on the network than single bulbs.
+          selector:
+            entity:
+              multiple: true
+              filter:
+                - domain: light
+        fade_minutes:
+          name: Sunrise duration
+          default: 30
+          selector:
+            number:
+              min: 5
+              max: 120
+              step: 5
+              unit_of_measurement: min
+        end_kelvin:
+          name: Final colour temperature ("morning sun")
+          description: 4000–5000 K looks like bright morning sun; 6500 K is cool daylight.
+          default: 4500
+          selector:
+            color_temp:
+              unit: kelvin
+              min: 2700
+              max: 6500
+        red_phase_pct:
+          name: Red → amber phase
+          description: Share of the sunrise spent fading from red to warm amber before moving to white.
+          default: 40
+          selector:
+            number:
+              min: 10
+              max: 80
+              step: 5
+              unit_of_measurement: "%"
+        brightness_curve:
+          name: Brightness curve
+          default: natural
+          selector:
+            select:
+              options:
+                - { label: "Natural (slow start, faster at the end)", value: natural }
+                - { label: Linear, value: linear }
+        step_seconds:
+          name: Update interval
+          description: >
+            Seconds between brightness/colour updates. Each update uses a matching
+            transition, so the fade looks continuous. 10–20 s suits Zigbee.
+          default: 15
+          selector:
+            number:
+              min: 5
+              max: 60
+              step: 1
+              unit_of_measurement: s
+
+    after_section:
+      name: At wake-up time
+      icon: mdi:alarm-check
+      collapsed: true
+      input:
+        alarm_actions:
+          name: Extra actions at wake-up time
+          description: Optional, e.g. start music or open the blinds. Only runs if the sunrise was not cancelled.
+          default: []
+          selector:
+            action: {}
+        keep_on_minutes:
+          name: Turn lights off after
+          description: Minutes after the wake-up time to switch the lights off. 0 = leave them on.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 240
+              step: 5
+              unit_of_measurement: min
+
+    skip_section:
+      name: When to skip
+      icon: mdi:calendar-remove
+      collapsed: true
+      input:
+        require_someone_home:
+          name: Only when someone is home
+          description: Uses the number of people in zone.home.
+          default: true
+          selector:
+            boolean: {}
+        workday_sensor:
+          name: Workday sensor
+          description: >
+            Optional Workday integration binary sensor. The sunrise is skipped when it
+            is 'off' (weekends, public holidays, your extra days off). If you want
+            weekend alarms, use the weekday filter above instead and leave this empty.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: binary_sensor
+                  integration: workday
+        days_off_calendar:
+          name: Days-off calendar
+          description: Optional. The sunrise is skipped while an event in this calendar is active (e.g. an all-day "Vacation" event).
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: calendar
+        holidays_apply_to_phone:
+          name: Apply workday/calendar skip to the phone alarm too
+          description: Off = an alarm you set on your phone always runs, even on a holiday.
+          default: false
+          selector:
+            boolean: {}
+        skip_if_lights_on:
+          name: Skip if the lights are already on
+          default: true
+          selector:
+            boolean: {}
+
+mode: single
+max_exceeded: silent
+
+trigger_variables:
+  tv_use_fixed: !input use_fixed_time
+  tv_fixed_time: !input fixed_time
+  tv_use_helper: !input use_helper
+  tv_helper: !input alarm_helper
+  tv_use_phone: !input use_phone
+  tv_phone_sensor: !input phone_alarm_sensor
+  tv_weekdays: !input weekdays
+  tv_fade_min: !input fade_minutes
+
+# Each trigger becomes true once the current time is inside the window
+# [alarm - duration, alarm). Template triggers re-render every minute.
+triggers:
+  - trigger: template
+    id: fixed
+    value_template: >-
+      {%- if tv_use_fixed -%}
+        {%- set d = today_at(tv_fixed_time) -%}
+        {%- if d <= now() -%}{%- set d = d + timedelta(days=1) -%}{%- endif -%}
+        {%- set day = ['mon','tue','wed','thu','fri','sat','sun'][d.weekday()] -%}
+        {{ day in tv_weekdays and as_timestamp(d) - tv_fade_min * 60 <= as_timestamp(now()) }}
+      {%- else -%}false{%- endif -%}
+  - trigger: template
+    id: helper
+    value_template: >-
+      {%- set h = tv_helper -%}
+      {%- if tv_use_helper and h and has_value(h) and state_attr(h, 'has_time') -%}
+        {%- if state_attr(h, 'has_date') -%}
+          {%- set a = state_attr(h, 'timestamp') | float(0) -%}
+          {%- set day_ok = true -%}
+        {%- else -%}
+          {%- set d = today_at(states(h)) -%}
+          {%- if d <= now() -%}{%- set d = d + timedelta(days=1) -%}{%- endif -%}
+          {%- set a = as_timestamp(d) -%}
+          {%- set day_ok = ['mon','tue','wed','thu','fri','sat','sun'][d.weekday()] in tv_weekdays -%}
+        {%- endif -%}
+        {%- set n = as_timestamp(now()) -%}
+        {{ day_ok and a > 0 and a - tv_fade_min * 60 <= n and n < a }}
+      {%- else -%}false{%- endif -%}
+  - trigger: template
+    id: phone
+    value_template: >-
+      {%- set s = tv_phone_sensor -%}
+      {%- if tv_use_phone and s and has_value(s) -%}
+        {%- set a = as_timestamp(states(s), 0) -%}
+        {%- set n = as_timestamp(now()) -%}
+        {{ a > 0 and a - tv_fade_min * 60 <= n and n < a }}
+      {%- else -%}false{%- endif -%}
+
+variables:
+  lights: !input target_lights
+  fade_min: !input fade_minutes
+  fixed_time: !input fixed_time
+  alarm_helper: !input alarm_helper
+  phone_sensor: !input phone_alarm_sensor
+  phone_presence: !input phone_presence
+  end_k: !input end_kelvin
+  red_pct: !input red_phase_pct
+  curve: !input brightness_curve
+  step_in: !input step_seconds
+  keep_on_min: !input keep_on_minutes
+  require_home: !input require_someone_home
+  workday_sensor: !input workday_sensor
+  days_off_calendar: !input days_off_calendar
+  holidays_apply_to_phone: !input holidays_apply_to_phone
+  skip_if_on: !input skip_if_lights_on
+
+conditions:
+  - alias: Not already started for this alarm (prevents a restart after you switched off)
+    condition: template
+    value_template: >-
+      {%- set lt = this.attributes.last_triggered -%}
+      {{ lt is none or as_timestamp(now()) - as_timestamp(lt) > (fade_min + 60) * 60 }}
+  - alias: Phone alarm only counts when the phone is home
+    condition: template
+    value_template: "{{ trigger.id != 'phone' or not phone_presence or is_state(phone_presence, 'home') }}"
+  - alias: Someone is home
+    condition: template
+    value_template: "{{ not require_home or states('zone.home') | int(0) > 0 }}"
+  - alias: Workday (if configured)
+    condition: template
+    value_template: >-
+      {{ (trigger.id == 'phone' and not holidays_apply_to_phone)
+         or not workday_sensor or not is_state(workday_sensor, 'off') }}
+  - alias: No days-off calendar event active (if configured)
+    condition: template
+    value_template: >-
+      {{ (trigger.id == 'phone' and not holidays_apply_to_phone)
+         or not days_off_calendar or not is_state(days_off_calendar, 'on') }}
+  - alias: Lights not already on (if enabled)
+    condition: template
+    value_template: "{{ not skip_if_on or lights | select('is_state', 'on') | list | count == 0 }}"
+
+actions:
+  - alias: Work out timing and colours
+    variables:
+      step_s: "{{ step_in | float(15) }}"
+      start_ts: "{{ as_timestamp(now()) }}"
+      alarm_ts: >-
+        {%- set tid = trigger.id -%}
+        {%- if tid == 'phone' -%}
+          {{ as_timestamp(states(phone_sensor), 0) }}
+        {%- elif tid == 'helper' and state_attr(alarm_helper, 'has_date') -%}
+          {{ state_attr(alarm_helper, 'timestamp') | float(0) }}
+        {%- else -%}
+          {%- set d = today_at(fixed_time if tid == 'fixed' else states(alarm_helper)) -%}
+          {%- if d <= now() -%}{%- set d = d + timedelta(days=1) -%}{%- endif -%}
+          {{ as_timestamp(d) }}
+        {%- endif -%}
+      # Normally the full duration; shorter if the alarm was set late. At least 60 s.
+      total_s: >-
+        {%- set full = fade_min * 60 -%}
+        {%- set left = alarm_ts - start_ts if alarm_ts > 0 else full -%}
+        {{ [[full, left] | min, 60] | max }}
+      end_ts: "{{ start_ts + total_s }}"
+      red_share: "{{ red_pct / 100 }}"
+      # Deep red (inside typical Zigbee bulb gamuts)
+      red_x: 0.69
+      red_y: 0.31
+      # Warmest white all bulbs can do (Hue 2000 K, IKEA ~2200 K)
+      start_k: >-
+        {%- set mins = lights | map('state_attr', 'min_color_temp_kelvin') | select('number') | list -%}
+        {{ ([2000] + mins) | max }}
+      # xy of start_k on the black-body curve (Kim et al. approximation), so the
+      # hand-over from colour to white has no visible jump.
+      handoff_xy: >-
+        {%- set t = start_k | float -%}
+        {%- if t <= 4000 -%}
+          {%- set x = -266123900.0 / t**3 - 234358.9 / t**2 + 877.6956 / t + 0.179910 -%}
+        {%- else -%}
+          {%- set x = -3025846900.0 / t**3 + 2107037.9 / t**2 + 222.6347 / t + 0.240390 -%}
+        {%- endif -%}
+        {%- if t <= 2222 -%}
+          {%- set y = -1.1063814 * x**3 - 1.34811020 * x**2 + 2.18555832 * x - 0.20219683 -%}
+        {%- elif t <= 4000 -%}
+          {%- set y = -0.9549476 * x**3 - 1.37418593 * x**2 + 2.09137015 * x - 0.16748867 -%}
+        {%- else -%}
+          {%- set y = 3.0817580 * x**3 - 5.87338670 * x**2 + 3.75112997 * x - 0.37001483 -%}
+        {%- endif -%}
+        {{ [x | round(4), y | round(4)] }}
+
+  - alias: Start at 1 % deep red
+    action: light.turn_on
+    target:
+      entity_id: "{{ lights }}"
+    data:
+      brightness: 3
+      xy_color: "{{ [red_x, red_y] }}"
+
+  - alias: Wait until the lights report 'on'
+    wait_template: "{{ lights | select('is_state', 'on') | list | count > 0 }}"
+    timeout: 15
+    continue_on_timeout: false
+
+  - alias: Give slower bulbs a moment to report, then fix the participating lights
+    delay: 2
+  - variables:
+      # Only lights that actually came on take part; an unreachable bulb is ignored.
+      participating: "{{ lights | select('is_state', 'on') | list }}"
+
+  - alias: Fade loop
+    repeat:
+      sequence:
+        - alias: A light was switched off between steps -> cancel
+          if:
+            - condition: template
+              value_template: "{{ participating | reject('is_state', 'on') | list | count > 0 }}"
+          then:
+            - delay: 2
+            - action: light.turn_off
+              target:
+                entity_id: "{{ participating | reject('is_state', 'on') | list }}"
+            - stop: Sunrise cancelled because a light was switched off
+        - variables:
+            remaining: "{{ [end_ts - as_timestamp(now()), 0] | max }}"
+            tr: "{{ [step_s, remaining] | min | round(1) }}"
+            # Progress the lights should reach at the end of this step (0..1)
+            p: "{{ [(as_timestamp(now()) - start_ts + step_s) / total_s, 1] | min }}"
+            pb: "{{ p * p if curve == 'natural' else p }}"
+            bri: "{{ [[(3 + 252 * pb) | round(0) | int, 3] | max, 255] | min }}"
+        - choose:
+            - alias: Red -> amber (xy colour)
+              conditions:
+                - condition: template
+                  value_template: "{{ p < red_share }}"
+              sequence:
+                - action: light.turn_on
+                  target:
+                    entity_id: "{{ participating }}"
+                  data:
+                    brightness: "{{ bri }}"
+                    transition: "{{ tr }}"
+                    xy_color: >-
+                      {%- set q = p / red_share -%}
+                      {{ [ (red_x + (handoff_xy[0] - red_x) * q) | round(4),
+                           (red_y + (handoff_xy[1] - red_y) * q) | round(4) ] }}
+          default:
+            - alias: Warm white -> morning sun (colour temperature)
+              action: light.turn_on
+              target:
+                entity_id: "{{ participating }}"
+              data:
+                brightness: "{{ bri }}"
+                transition: "{{ tr }}"
+                color_temp_kelvin: >-
+                  {%- set q = (p - red_share) / (1 - red_share) if red_share < 1 else 1 -%}
+                  {{ (start_k + (end_k - start_k) * q) | round(0) | int }}
+        - alias: Wait for the next step; react instantly to a light being switched off
+          wait_for_trigger:
+            - trigger: state
+              entity_id: !input target_lights
+              from: "on"
+              to: ["off", "unavailable"]
+          timeout: "{{ tr }}"
+          continue_on_timeout: true
+        - alias: Switched off -> make sure it stays off and cancel the sunrise
+          if:
+            - condition: template
+              value_template: "{{ wait.trigger is not none }}"
+          then:
+            # A Zigbee bulb can still report the end of a running transition after
+            # being switched off; a second 'off' shortly after prevents it coming back.
+            - delay: 2
+            - action: light.turn_off
+              target:
+                entity_id: "{{ [wait.trigger.entity_id] + (participating | reject('is_state', 'on') | list) }}"
+            - stop: Sunrise cancelled because a light was switched off
+      until:
+        - condition: template
+          value_template: "{{ as_timestamp(now()) >= end_ts }}"
+
+  - alias: Extra wake-up actions
+    sequence: !input alarm_actions
+
+  - alias: Optional automatic switch-off
+    if:
+      - condition: template
+        value_template: "{{ keep_on_min | float(0) > 0 }}"
+    then:
+      - wait_template: "{{ lights | select('is_state', 'on') | list | count == 0 }}"
+        timeout: "{{ (keep_on_min * 60) | int }}"
+      - if:
+          - condition: template
+            value_template: "{{ not wait.completed }}"
+        then:
+          - action: light.turn_off
+            target:
+              entity_id: "{{ lights | select('is_state', 'on') | list }}"
+            data:
+              transition: 10
