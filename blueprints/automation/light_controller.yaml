@@ -425,6 +425,18 @@ triggers:
          and motion_entities | select('is_state', 'on') | list | count > 0 }}
     id: alarm_away_ended
 
+# The lux_dark / alarm_away_ended templates also turn true when presence
+# starts (motion_on handles that) or an entity returns from unavailable.
+# Only a real change of the lux sensor / panel counts. Checked before the
+# restart, so a dropped trigger never cancels a running off-delay.
+conditions:
+  - condition: template
+    value_template: >
+      {{ trigger.id not in ['lux_dark', 'alarm_away_ended']
+         or (trigger.from_state is not none
+             and trigger.entity_id == (lux_sensor if trigger.id == 'lux_dark' else alarm_panel)
+             and trigger.from_state.state not in ['unavailable', 'unknown']) }}
+
 variables:
   motion_entities: !input motion_entities
   light_entities: !input light_entities
