@@ -37,7 +37,8 @@ blueprint:
             (plus any Night lights); the Night profile can limit which of
             them are turned on. Switching a light on manually does NOT start
             the off-timer. The off-timer only starts when a presence sensor
-            turns off (or a turn-off block ends / Home Assistant restarts).
+            turns off (or a turn-off block ends / Home Assistant restarts /
+            any automation is reloaded / an alarm ends).
           selector:
             entity:
               filter:
