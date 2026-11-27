@@ -12,7 +12,7 @@ Turns lights on when a motion or presence sensor triggers and off again after no
 - **Adaptive Lighting:** compatible, including sleep mode.
 - **Alarm panel:** full light on alarm, lights off when armed away.
 
-Lights switched on manually do not start the off-timer. It starts only when a presence sensor turns off, a turn-off block ends, or Home Assistant restarts.
+Lights switched on manually do not start the off-timer. It starts only when a presence sensor turns off, a turn-off block ends, Home Assistant restarts, any automation is reloaded, or an alarm ends.
 
 ## Requirements
 
@@ -102,3 +102,4 @@ Keep "Control brightness and color" off. Lights are then turned on without brigh
 - A block entity that becomes unavailable counts as not blocking.
 - A presence, illuminance or alarm panel entity coming back from unavailable does not turn the lights on, even if the room is now dark (prevents lights turning on after a restart). The next presence start does.
 - The alarm restore compares the time each light turned on with the time the alarm triggered. After a Home Assistant restart during an alarm, every light that is on is turned off when the alarm ends without presence. A light switched off and on again during the alarm is also treated as an alarm light.
+- When an alarm ends, Adaptive Lighting adapts every light of this automation that is still on, including lights that are not in the Adaptive Lighting instance.
