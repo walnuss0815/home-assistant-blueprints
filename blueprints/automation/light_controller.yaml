@@ -439,13 +439,10 @@ conditions:
              and trigger.from_state.state not in ['unavailable', 'unknown']) }}
 
 variables:
-  motion_entities: !input motion_entities
   light_entities: !input light_entities
   operation_mode: !input operation_mode
   block_on_entities: !input block_on_entities
   block_on_states: !input block_on_states
-  lux_sensor: !input illuminance_sensor
-  lux_threshold: !input illuminance_threshold
   lux_grace: !input illuminance_ignore_after_off
   adaptive_switch: !input adaptive_lighting_switch
   day_wait: !input day_wait
@@ -509,8 +506,6 @@ variables:
     {% set w = night_wait if profile == 'night' else day_wait %}
     {{ (w.get('days', 0) | int) * 86400 + (w.get('hours', 0) | int) * 3600
        + (w.get('minutes', 0) | int) * 60 + (w.get('seconds', 0) | int) }}
-  # Brightness/color are only set when "Control brightness and color" is on.
-  eff_custom: "{{ control_settings }}"
   eff_brightness: >
     {{ (night_brightness if profile == 'night' else day_brightness) | int }}
   eff_color_mode: >
@@ -643,7 +638,7 @@ actions:
           - choose:
               - conditions:
                   - condition: template
-                    value_template: "{{ eff_custom and eff_color_mode == 'color_temp' }}"
+                    value_template: "{{ control_settings and eff_color_mode == 'color_temp' }}"
                 sequence:
                   - action: light.turn_on
                     target:
@@ -653,7 +648,7 @@ actions:
                       color_temp_kelvin: "{{ eff_color_temp }}"
               - conditions:
                   - condition: template
-                    value_template: "{{ eff_custom and eff_color_mode == 'rgb' }}"
+                    value_template: "{{ control_settings and eff_color_mode == 'rgb' }}"
                 sequence:
                   - action: light.turn_on
                     target:
@@ -663,7 +658,7 @@ actions:
                       rgb_color: !input rgb_color
               - conditions:
                   - condition: template
-                    value_template: "{{ eff_custom }}"
+                    value_template: "{{ control_settings }}"
                 sequence:
                   - action: light.turn_on
                     target:
