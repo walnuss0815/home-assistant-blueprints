@@ -40,6 +40,7 @@ Keep "Control brightness and color" off. Lights are then turned on without brigh
 | Triggered | All lights (including Night lights) on at 100% neutral white, held on while triggered. Overrides lux, profiles, operation mode and all blocks. |
 | Triggered, then ended | Lights that were off before the alarm are turned off again. The others follow the normal off-timer. |
 | Armed away / vacation | Lights are turned off immediately and not turned on automatically. Overrides operation mode and all blocks. |
+| Armed away / vacation, then ended | If presence is already detected (e.g. entry delay starts after the motion sensor), lights are turned on as for new motion. |
 | Pending (entry delay) | Normal operation, but lights turn on at night even if "Allow automatic turn-on at night" is off. |
 | Other | Normal operation. |
 
