@@ -327,11 +327,12 @@ blueprint:
           description: >
             Triggered: all lights (incl. Night lights) on at 100% neutral
             white, held on while the alarm is triggered, overriding lux,
-            profiles, operation mode and all blocks. When the alarm ends,
-            lights that were off before it are turned off again, the others
-            follow the normal off-timer. Armed away / vacation: lights are
-            turned off immediately and not turned on automatically,
-            overriding operation mode and all blocks. When armed away /
+            profiles, operation mode and all blocks. When the alarm ends
+            without presence, lights that were off before it are turned off
+            again. The others (all of them with presence) follow the normal
+            off-timer. Armed away / vacation: lights are turned off
+            immediately and not turned on automatically, overriding
+            operation mode and all blocks. When armed away /
             vacation ends (entry delay, disarm) while presence is already
             detected, lights are turned on as for new motion. Pending
             (entry delay): normal operation, but lights turn on at night
@@ -520,7 +521,8 @@ variables:
 actions:
   # Alarm over: turn off the lights the alarm switched on. Lights that changed
   # to "on" after the alarm started were off before it (brightness/color
-  # changes do not update last_changed).
+  # changes do not update last_changed). Skipped with presence (e.g. owner
+  # disarming): the sensor stays on, so nothing would turn them back on.
   - if:
       - condition: trigger
         id: alarm_cleared
@@ -529,6 +531,8 @@ actions:
           {{ trigger.from_state is not none and trigger.to_state is not none
              and trigger.from_state.state == 'triggered'
              and trigger.to_state.state not in ['unavailable', 'unknown'] }}
+      - condition: template
+        value_template: "{{ motion_entities | select('is_state', 'on') | list | count == 0 }}"
     then:
       - variables:
           alarm_lights: >

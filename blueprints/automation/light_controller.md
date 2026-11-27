@@ -38,7 +38,7 @@ Keep "Control brightness and color" off. Lights are then turned on without brigh
 | Alarm state | Behavior |
 | ----------- | -------- |
 | Triggered | All lights (including Night lights) on at 100% neutral white, held on while triggered. Overrides lux, profiles, operation mode and all blocks. |
-| Triggered, then ended | Lights that were off before the alarm are turned off again. The others follow the normal off-timer. |
+| Triggered, then ended | Without presence, lights that were off before the alarm are turned off again. With presence (e.g. you disarm it yourself), all lights stay on. Lights still on follow the normal off-timer. |
 | Armed away / vacation | Lights are turned off immediately and not turned on automatically. Overrides operation mode and all blocks. |
 | Armed away / vacation, then ended | If presence is already detected (e.g. entry delay starts after the motion sensor), lights are turned on as for new motion. |
 | Pending (entry delay) | Normal operation, but lights turn on at night even if "Allow automatic turn-on at night" is off. |
@@ -101,4 +101,4 @@ Keep "Control brightness and color" off. Lights are then turned on without brigh
 - After a Home Assistant restart, every light that is off counts as "just turned off", so the illuminance condition is ignored for the grace period.
 - A block entity that becomes unavailable counts as not blocking.
 - A presence, illuminance or alarm panel entity coming back from unavailable does not turn the lights on, even if the room is now dark (prevents lights turning on after a restart). The next presence start does.
-- The alarm restore compares the time each light turned on with the time the alarm triggered. After a Home Assistant restart during an alarm, every light that is on is turned off when the alarm ends. A light switched off and on again during the alarm is also treated as an alarm light.
+- The alarm restore compares the time each light turned on with the time the alarm triggered. After a Home Assistant restart during an alarm, every light that is on is turned off when the alarm ends without presence. A light switched off and on again during the alarm is also treated as an alarm light.
