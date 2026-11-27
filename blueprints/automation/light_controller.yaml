@@ -331,10 +331,12 @@ blueprint:
             lights that were off before it are turned off again, the others
             follow the normal off-timer. Armed away / vacation: lights are
             turned off immediately and not turned on automatically,
-            overriding operation mode and all blocks. Pending (entry
-            delay): normal operation, but lights turn on at night even if
-            "Allow automatic turn-on at night" is off. All other states:
-            normal operation.
+            overriding operation mode and all blocks. When armed away /
+            vacation ends (entry delay, disarm) while presence is already
+            detected, lights are turned on as for new motion. Pending
+            (entry delay): normal operation, but lights turn on at night
+            even if "Allow automatic turn-on at night" is off. All other
+            states: normal operation.
           default: ""
           selector:
             entity:
@@ -412,6 +414,16 @@ triggers:
       {{ alarm_panel not in ['', none]
          and states(alarm_panel) in ['armed_away', 'armed_vacation'] }}
     id: alarm_armed_away
+  # Panel left armed away (entry delay, disarm) while presence is on: the
+  # motion trigger was blocked then and the sensor stays on, so turn on now.
+  # "triggered" counts as left, so this never fires when an alarm ends.
+  # Requires presence, so it never cancels a running off-delay (restart).
+  - trigger: template
+    value_template: >
+      {{ alarm_panel not in ['', none]
+         and states(alarm_panel) not in ['armed_away', 'armed_vacation', 'unavailable', 'unknown']
+         and motion_entities | select('is_state', 'on') | list | count > 0 }}
+    id: alarm_away_ended
 
 variables:
   motion_entities: !input motion_entities
@@ -585,7 +597,8 @@ actions:
             id:
               - motion_on
               - lux_dark
-          # Illuminance trigger: only if presence started after the lights went off.
+              - alarm_away_ended
+          # Illuminance / alarm trigger: only if presence started after the lights went off.
           - condition: template
             value_template: "{{ trigger.id == 'motion_on' or presence_after_lights_off }}"
           - condition: template
