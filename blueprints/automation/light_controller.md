@@ -100,4 +100,5 @@ Keep "Control brightness and color" off. Lights are then turned on without brigh
 - Saving any automation fires a reload event, which restarts a running off-delay of this automation. Lights then stay on a little longer.
 - After a Home Assistant restart, every light that is off counts as "just turned off", so the illuminance condition is ignored for the grace period.
 - A block entity that becomes unavailable counts as not blocking.
+- A presence, illuminance or alarm panel entity coming back from unavailable does not turn the lights on, even if the room is now dark (prevents lights turning on after a restart). The next presence start does.
 - The alarm restore compares the time each light turned on with the time the alarm triggered. After a Home Assistant restart during an alarm, every light that is on is turned off when the alarm ends. A light switched off and on again during the alarm is also treated as an alarm light.
